@@ -1,21 +1,22 @@
 module Components.ArticleList exposing (view)
 
-import Api.Article exposing (Article)
+import Api
 import Api.Data exposing (Data)
-import Api.User exposing (User)
+import Article
 import Components.IconButton as IconButton
 import Html exposing (..)
 import Html.Attributes exposing (alt, class, classList, href, src)
 import Html.Events as Events
+import Iso8601
 import Utils.Maybe
 import Utils.Time
 
 
 view :
-    { user : Maybe User
-    , articleListing : Data Api.Article.Listing
-    , onFavorite : User -> Article -> msg
-    , onUnfavorite : User -> Article -> msg
+    { user : Maybe Api.User
+    , articleListing : Data Article.Listing
+    , onFavorite : Api.User -> Api.Article -> msg
+    , onUnfavorite : Api.User -> Api.Article -> msg
     , onPageClick : Int -> msg
     }
     -> List (Html msg)
@@ -53,11 +54,11 @@ view options =
 
 viewArticlePreview :
     { options
-        | user : Maybe User
-        , onFavorite : User -> Article -> msg
-        , onUnfavorite : User -> Article -> msg
+        | user : Maybe Api.User
+        , onFavorite : Api.User -> Api.Article -> msg
+        , onUnfavorite : Api.User -> Api.Article -> msg
     }
-    -> Article
+    -> Api.Article
     -> Html msg
 viewArticlePreview options article =
     div [ class "article-preview" ]
@@ -67,7 +68,13 @@ viewArticlePreview options article =
                 ]
             , div [ class "info" ]
                 [ a [ class "author", href ("/profile/" ++ article.author.username) ] [ text article.author.username ]
-                , span [ class "date" ] [ text (Utils.Time.formatDate article.createdAt) ]
+                , span [ class "date" ]
+                    [ article.createdAt
+                        |> Iso8601.toTime
+                        |> Result.map Utils.Time.formatDate
+                        |> Result.withDefault article.createdAt
+                        |> text
+                    ]
                 ]
             , div [ class "pull-xs-right" ]
                 [ Utils.Maybe.view options.user <|
@@ -96,14 +103,14 @@ viewArticlePreview options article =
             [ h1 [] [ text article.title ]
             , p [] [ text article.description ]
             , span [] [ text "Read more..." ]
-            , if List.isEmpty article.tags then
+            , if List.isEmpty article.tagList then
                 text ""
 
               else
                 ul [ class "tag-list" ]
                     (List.map
                         (\tag -> li [ class "tag-default tag-pill tag-outline" ] [ text tag ])
-                        article.tags
+                        article.tagList
                     )
             ]
         ]

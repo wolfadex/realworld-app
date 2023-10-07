@@ -1,16 +1,15 @@
 module Pages.Article.Slug_ exposing (Model, Msg, page)
 
-import Api.Article exposing (Article)
-import Api.Article.Comment exposing (Comment)
+import Api
 import Api.Data exposing (Data)
-import Api.Profile exposing (Profile)
-import Api.User exposing (User)
 import Components.IconButton as IconButton
-import Dict exposing (Dict)
+import Dict
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, href, placeholder, src, value)
 import Html.Events as Events
+import Http
+import Iso8601
 import Layouts
 import Markdown
 import Page exposing (Page)
@@ -38,29 +37,27 @@ page shared route =
 
 
 type alias Model =
-    { article : Data Article
-    , comments : Data (List Comment)
+    { article : Data Api.Article
+    , comments : Data (List Api.Comment)
     , commentText : String
     }
 
 
 init : Shared.Model -> Route { slug : String } -> () -> ( Model, Effect Msg )
-init shared { params } _ =
+init _ { params } _ =
     ( { article = Api.Data.Loading
       , comments = Api.Data.Loading
       , commentText = ""
       }
     , Effect.batch
-        [ Api.Article.get
-            { slug = params.slug
-            , token = shared.user |> Maybe.map .token
-            , onResponse = GotArticle
+        [ Api.getArticle
+            { params = { slug = params.slug }
+            , toMsg = GotArticle
             }
             |> Effect.sendCmd
-        , Api.Article.Comment.get
-            { token = shared.user |> Maybe.map .token
-            , articleSlug = params.slug
-            , onResponse = GotComments
+        , Api.getArticleComments
+            { params = { slug = params.slug }
+            , toMsg = GotComments
             }
             |> Effect.sendCmd
         ]
@@ -72,61 +69,68 @@ init shared { params } _ =
 
 
 type Msg
-    = GotArticle (Data Article)
-    | ClickedFavorite User Article
-    | ClickedUnfavorite User Article
-    | ClickedDeleteArticle User Article
-    | DeletedArticle (Data Article)
-    | GotAuthor (Data Profile)
-    | ClickedFollow User Profile
-    | ClickedUnfollow User Profile
-    | GotComments (Data (List Comment))
-    | ClickedDeleteComment User Article Comment
-    | DeletedComment (Data Int)
-    | SubmittedCommentForm User Article
-    | CreatedComment (Data Comment)
+    = GotArticle (Result Http.Error Api.SingleArticleResponse)
+    | ClickedFavorite Api.User Api.Article
+    | ClickedUnfavorite Api.User Api.Article
+    | ClickedDeleteArticle Api.User Api.Article
+    | DeletedArticle
+    | GotAuthor (Result Http.Error Api.ProfileResponse)
+    | ClickedFollow Api.User Api.Profile
+    | ClickedUnfollow Api.User Api.Profile
+    | GotComments (Result Http.Error Api.MultipleCommentsResponse)
+    | ClickedDeleteComment Api.User Api.Article Api.Comment
+    | DeletedComment Int
+    | SubmittedCommentForm Api.User Api.Article
+    | CreatedComment (Result Http.Error Api.SingleCommentResponse)
     | UpdatedCommentText String
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        GotArticle article ->
+        GotArticle response ->
+            let
+                article =
+                    response
+                        |> Result.mapError (\_ -> [ "Failed to get article" ])
+                        |> Result.map .article
+                        |> Api.Data.fromResult
+            in
             ( { model | article = article }
             , Effect.none
             )
 
         ClickedFavorite user article ->
             ( model
-            , Api.Article.favorite
-                { token = user.token
-                , slug = article.slug
-                , onResponse = GotArticle
+            , Api.createArticleFavorite
+                { authorization = { token = user.token }
+                , params = { slug = article.slug }
+                , toMsg = GotArticle
                 }
                 |> Effect.sendCmd
             )
 
         ClickedUnfavorite user article ->
             ( model
-            , Api.Article.unfavorite
-                { token = user.token
-                , slug = article.slug
-                , onResponse = GotArticle
+            , Api.deleteArticleFavorite
+                { authorization = { token = user.token }
+                , params = { slug = article.slug }
+                , toMsg = GotArticle
                 }
                 |> Effect.sendCmd
             )
 
         ClickedDeleteArticle user article ->
             ( model
-            , Api.Article.delete
-                { token = user.token
-                , slug = article.slug
-                , onResponse = DeletedArticle
+            , Api.deleteArticle
+                { authorization = { token = user.token }
+                , params = { slug = article.slug }
+                , toMsg = \_ -> DeletedArticle
                 }
                 |> Effect.sendCmd
             )
 
-        DeletedArticle _ ->
+        DeletedArticle ->
             ( model
             , Effect.pushRoute
                 { path = Route.Path.Home_
@@ -135,9 +139,16 @@ update msg model =
                 }
             )
 
-        GotAuthor profile ->
+        GotAuthor response ->
             let
-                updateAuthor : Article -> Article
+                profile : Api.Data.Data Api.Profile
+                profile =
+                    response
+                        |> Result.mapError (\_ -> [ "Failed to get author" ])
+                        |> Result.map .profile
+                        |> Api.Data.fromResult
+
+                updateAuthor : Api.Article -> Api.Article
                 updateAuthor article =
                     case profile of
                         Api.Data.Success author ->
@@ -152,25 +163,32 @@ update msg model =
 
         ClickedFollow user profile ->
             ( model
-            , Api.Profile.follow
-                { token = user.token
-                , username = profile.username
-                , onResponse = GotAuthor
+            , Api.followUserByUsername
+                { authorization = { token = user.token }
+                , params = { username = profile.username }
+                , toMsg = GotAuthor
                 }
                 |> Effect.sendCmd
             )
 
         ClickedUnfollow user profile ->
             ( model
-            , Api.Profile.unfollow
-                { token = user.token
-                , username = profile.username
-                , onResponse = GotAuthor
+            , Api.unfollowUserByUsername
+                { authorization = { token = user.token }
+                , params = { username = profile.username }
+                , toMsg = GotAuthor
                 }
                 |> Effect.sendCmd
             )
 
-        GotComments comments ->
+        GotComments response ->
+            let
+                comments =
+                    response
+                        |> Result.mapError (\_ -> [ "Failed to get comments" ])
+                        |> Result.map .comments
+                        |> Api.Data.fromResult
+            in
             ( { model | comments = comments }
             , Effect.none
             )
@@ -186,41 +204,43 @@ update msg model =
 
             else
                 ( { model | commentText = "" }
-                , Api.Article.Comment.create
-                    { token = user.token
-                    , articleSlug = article.slug
-                    , comment = { body = model.commentText }
-                    , onResponse = CreatedComment
+                , Api.createArticleComment
+                    { authorization = { token = user.token }
+                    , params = { slug = article.slug }
+                    , body = { comment = { body = model.commentText } }
+                    , toMsg = CreatedComment
                     }
                     |> Effect.sendCmd
                 )
 
-        CreatedComment comment ->
-            ( case comment of
-                Api.Data.Success c ->
-                    { model | comments = Api.Data.map (\comments -> c :: comments) model.comments }
+        CreatedComment response ->
+            case response of
+                Ok { comment } ->
+                    ( { model | comments = Api.Data.map (\comments -> comment :: comments) model.comments }
+                    , Effect.none
+                    )
 
-                _ ->
-                    model
-            , Effect.none
-            )
+                Err _ ->
+                    ( model, Effect.none )
 
         ClickedDeleteComment user article comment ->
             ( model
-            , Api.Article.Comment.delete
-                { token = user.token
-                , articleSlug = article.slug
-                , commentId = comment.id
-                , onResponse = DeletedComment
+            , Api.deleteArticleComment
+                { authorization = { token = user.token }
+                , params =
+                    { slug = article.slug
+                    , id = comment.id
+                    }
+                , toMsg = \_ -> DeletedComment comment.id
                 }
                 |> Effect.sendCmd
             )
 
         DeletedComment id ->
             let
-                removeComment : List Comment -> List Comment
+                removeComment : List Api.Comment -> List Api.Comment
                 removeComment =
-                    List.filter (\comment -> Api.Data.Success comment.id /= id)
+                    List.filter (\comment -> comment.id /= id)
             in
             ( { model | comments = Api.Data.map removeComment model.comments }
             , Effect.none
@@ -250,7 +270,7 @@ view shared model =
             }
 
 
-viewArticle : Shared.Model -> Model -> Article -> Html Msg
+viewArticle : Shared.Model -> Model -> Api.Article -> Html Msg
 viewArticle shared model article =
     div [ class "article-page" ]
         [ div [ class "banner" ]
@@ -263,14 +283,14 @@ viewArticle shared model article =
             [ div [ class "row article-content" ]
                 [ div [ class "col-md-12" ]
                     [ Markdown.toHtml [] article.body ]
-                , if List.isEmpty article.tags then
+                , if List.isEmpty article.tagList then
                     text ""
 
                   else
                     ul [ class "tag-list" ]
                         (List.map
                             (\tag -> li [ class "tag-default tag-pill tag-outline" ] [ text tag ])
-                            article.tags
+                            article.tagList
                         )
                 ]
             , hr [] []
@@ -280,8 +300,8 @@ viewArticle shared model article =
         ]
 
 
-viewArticleMeta : Shared.Model -> Model -> Article -> Html Msg
-viewArticleMeta shared model article =
+viewArticleMeta : Shared.Model -> Model -> Api.Article -> Html Msg
+viewArticleMeta shared _ article =
     div [ class "article-meta" ] <|
         List.concat
             [ [ a [ href ("/profile/" ++ article.author.username) ]
@@ -289,7 +309,13 @@ viewArticleMeta shared model article =
                     ]
               , div [ class "info" ]
                     [ a [ class "author", href ("/profile/" ++ article.author.username) ] [ text article.author.username ]
-                    , span [ class "date" ] [ text (Utils.Time.formatDate article.createdAt) ]
+                    , span [ class "date" ]
+                        [ article.createdAt
+                            |> Iso8601.toTime
+                            |> Result.map Utils.Time.formatDate
+                            |> Result.withDefault article.createdAt
+                            |> text
+                        ]
                     ]
               ]
             , case shared.user of
@@ -301,7 +327,7 @@ viewArticleMeta shared model article =
             ]
 
 
-viewControls : Article -> User -> List (Html Msg)
+viewControls : Api.Article -> Api.User -> List (Html Msg)
 viewControls article user =
     if article.author.username == user.username then
         [ a
@@ -353,7 +379,7 @@ viewControls article user =
         ]
 
 
-viewCommentSection : Shared.Model -> Model -> Article -> Html Msg
+viewCommentSection : Shared.Model -> Model -> Api.Article -> Html Msg
 viewCommentSection shared model article =
     div [ class "row" ]
         [ div [ class "col-xs-12 col-md-8 offset-md-2" ] <|
@@ -374,7 +400,7 @@ viewCommentSection shared model article =
         ]
 
 
-viewCommentForm : Model -> User -> Article -> Html Msg
+viewCommentForm : Model -> Api.User -> Api.Article -> Html Msg
 viewCommentForm model user article =
     form [ class "card comment-form", Events.onSubmit (SubmittedCommentForm user article) ]
         [ div [ class "card-block" ]
@@ -394,7 +420,7 @@ viewCommentForm model user article =
         ]
 
 
-viewComment : Maybe User -> Article -> Comment -> Html Msg
+viewComment : Maybe Api.User -> Api.Article -> Api.Comment -> Html Msg
 viewComment currentUser article comment =
     let
         viewCommentActions =
@@ -421,7 +447,13 @@ viewComment currentUser article comment =
                 [ img [ class "comment-author-img", src comment.author.image ] []
                 , text comment.author.username
                 ]
-            , span [ class "date-posted" ] [ text (Utils.Time.formatDate comment.createdAt) ]
+            , span [ class "date-posted" ]
+                [ comment.createdAt
+                    |> Iso8601.toTime
+                    |> Result.map Utils.Time.formatDate
+                    |> Result.withDefault comment.createdAt
+                    |> text
+                ]
             , viewCommentActions
             ]
         ]

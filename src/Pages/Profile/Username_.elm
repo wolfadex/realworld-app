@@ -1,11 +1,8 @@
-module Pages.Profile.Username_ exposing (Model, Msg, page)
+module Pages.Profile.Username_ exposing (Model, Msg, Tab, page)
 
-import Api.Article exposing (Article)
-import Api.Article.Filters as Filters
+import Api
 import Api.Data exposing (Data)
-import Api.Profile exposing (Profile)
-import Api.Token exposing (Token)
-import Api.User exposing (User)
+import Article
 import Components.ArticleList
 import Components.IconButton as IconButton
 import Components.NotFound
@@ -13,6 +10,7 @@ import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList, src)
 import Html.Events as Events
+import Http
 import Layouts
 import Page exposing (Page)
 import Route exposing (Route)
@@ -38,8 +36,8 @@ page shared req =
 
 type alias Model =
     { username : String
-    , profile : Data Profile
-    , listing : Data Api.Article.Listing
+    , profile : Data Api.Profile
+    , listing : Data Article.Listing
     , selectedTab : Tab
     , page : Int
     }
@@ -51,12 +49,7 @@ type Tab
 
 
 init : Shared.Model -> Route { username : String } -> () -> ( Model, Effect Msg )
-init shared { params } _ =
-    let
-        token : Maybe Token
-        token =
-            Maybe.map .token shared.user
-    in
+init _ { params } _ =
     ( { username = params.username
       , profile = Api.Data.Loading
       , listing = Api.Data.Loading
@@ -64,36 +57,47 @@ init shared { params } _ =
       , page = 1
       }
     , Effect.batch
-        [ Api.Profile.get
-            { token = token
-            , username = params.username
-            , onResponse = GotProfile
+        [ Api.getProfileByUsername
+            { params = params
+            , toMsg = GotProfile
             }
             |> Effect.sendCmd
-        , fetchArticlesBy token params.username 1
+        , fetchArticlesBy params.username 1
         ]
     )
 
 
-fetchArticlesBy : Maybe Token -> String -> Int -> Effect Msg
-fetchArticlesBy token username page_ =
-    Api.Article.list
-        { token = token
-        , page = page_
-        , filters = Filters.create |> Filters.byAuthor username
-        , onResponse = GotArticles
+pageLimit : Int
+pageLimit =
+    25
+
+
+fetchArticlesBy : String -> Int -> Effect Msg
+fetchArticlesBy username page_ =
+    Api.getArticles
+        { params =
+            { tag = Nothing
+            , author = Just username
+            , favorited = Nothing
+            , offset = Just ((page_ - 1) * pageLimit)
+            , limit = Just pageLimit
+            }
+        , toMsg = GotArticles page_
         }
         |> Effect.sendCmd
 
 
-fetchArticlesFavoritedBy : Maybe Token -> String -> Int -> Effect Msg
-fetchArticlesFavoritedBy token username page_ =
-    Api.Article.list
-        { token = token
-        , page = page_
-        , filters =
-            Filters.create |> Filters.favoritedBy username
-        , onResponse = GotArticles
+fetchArticlesFavoritedBy : String -> Int -> Effect Msg
+fetchArticlesFavoritedBy username page_ =
+    Api.getArticles
+        { params =
+            { tag = Nothing
+            , author = Nothing
+            , favorited = Just username
+            , offset = Just ((page_ - 1) * pageLimit)
+            , limit = Just pageLimit
+            }
+        , toMsg = GotArticles page_
         }
         |> Effect.sendCmd
 
@@ -103,47 +107,65 @@ fetchArticlesFavoritedBy token username page_ =
 
 
 type Msg
-    = GotProfile (Data Profile)
-    | GotArticles (Data Api.Article.Listing)
+    = GotProfile (Result Http.Error Api.ProfileResponse)
+    | GotArticles Int (Result Http.Error Api.MultipleArticlesResponse)
     | Clicked Tab
-    | ClickedFavorite User Article
-    | ClickedUnfavorite User Article
-    | UpdatedArticle (Data Article)
-    | ClickedFollow User Profile
-    | ClickedUnfollow User Profile
+    | ClickedFavorite Api.User Api.Article
+    | ClickedUnfavorite Api.User Api.Article
+    | UpdatedArticle (Result Http.Error Api.SingleArticleResponse)
+    | ClickedFollow Api.User Api.Profile
+    | ClickedUnfollow Api.User Api.Profile
     | ClickedPage Int
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         GotProfile profile ->
-            ( { model | profile = profile }
+            ( { model
+                | profile =
+                    profile
+                        |> Result.mapError (\_ -> [ "Profile error" ])
+                        |> Result.map .profile
+                        |> Api.Data.fromResult
+              }
             , Effect.none
             )
 
         ClickedFollow user profile ->
             ( model
-            , Api.Profile.follow
-                { token = user.token
-                , username = profile.username
-                , onResponse = GotProfile
+            , Api.followUserByUsername
+                { authorization = { token = user.token }
+                , params = { username = profile.username }
+                , toMsg = GotProfile
                 }
                 |> Effect.sendCmd
             )
 
         ClickedUnfollow user profile ->
             ( model
-            , Api.Profile.unfollow
-                { token = user.token
-                , username = profile.username
-                , onResponse = GotProfile
+            , Api.unfollowUserByUsername
+                { authorization = { token = user.token }
+                , params = { username = profile.username }
+                , toMsg = GotProfile
                 }
                 |> Effect.sendCmd
             )
 
-        GotArticles listing ->
-            ( { model | listing = listing }
+        GotArticles page_ response ->
+            ( { model
+                | listing =
+                    response
+                        |> Result.mapError (\_ -> [ "Articles error" ])
+                        |> Result.map
+                            (\{ articles, articlesCount } ->
+                                { articles = articles
+                                , page = page_
+                                , totalPages = articlesCount // pageLimit
+                                }
+                            )
+                        |> Api.Data.fromResult
+              }
             , Effect.none
             )
 
@@ -153,7 +175,7 @@ update shared msg model =
                 , listing = Api.Data.Loading
                 , page = 1
               }
-            , fetchArticlesBy (Maybe.map .token shared.user) model.username 1
+            , fetchArticlesBy model.username 1
             )
 
         Clicked FavoritedArticles ->
@@ -162,32 +184,32 @@ update shared msg model =
                 , listing = Api.Data.Loading
                 , page = 1
               }
-            , fetchArticlesFavoritedBy (Maybe.map .token shared.user) model.username 1
+            , fetchArticlesFavoritedBy model.username 1
             )
 
         ClickedFavorite user article ->
             ( model
-            , Api.Article.favorite
-                { token = user.token
-                , slug = article.slug
-                , onResponse = UpdatedArticle
+            , Api.createArticleFavorite
+                { authorization = { token = user.token }
+                , params = { slug = article.slug }
+                , toMsg = UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
 
         ClickedUnfavorite user article ->
             ( model
-            , Api.Article.unfavorite
-                { token = user.token
-                , slug = article.slug
-                , onResponse = UpdatedArticle
+            , Api.deleteArticleFavorite
+                { authorization = { token = user.token }
+                , params = { slug = article.slug }
+                , toMsg = UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
 
         ClickedPage page_ ->
             let
-                fetch : Maybe Token -> String -> Int -> Effect Msg
+                fetch : String -> Int -> Effect Msg
                 fetch =
                     case model.selectedTab of
                         MyArticles ->
@@ -201,21 +223,20 @@ update shared msg model =
                 , page = page_
               }
             , fetch
-                (shared.user |> Maybe.map .token)
                 model.username
                 page_
             )
 
-        UpdatedArticle (Api.Data.Success article) ->
+        UpdatedArticle (Ok { article }) ->
             ( { model
                 | listing =
-                    Api.Data.map (Api.Article.updateArticle article)
+                    Api.Data.map (Article.updateListing article)
                         model.listing
               }
             , Effect.none
             )
 
-        UpdatedArticle _ ->
+        UpdatedArticle (Err _) ->
             ( model, Effect.none )
 
 
@@ -244,7 +265,7 @@ view shared model =
     }
 
 
-viewProfile : Shared.Model -> Profile -> Model -> Html Msg
+viewProfile : Shared.Model -> Api.Profile -> Model -> Html Msg
 viewProfile shared profile model =
     let
         isViewingOwnProfile : Bool
@@ -259,8 +280,12 @@ viewProfile shared profile model =
                         [ div [ class "col-xs-12 col-md-10 offset-md-1" ]
                             [ img [ class "user-img", src profile.image ] []
                             , h4 [] [ text profile.username ]
-                            , Utils.Maybe.view profile.bio
-                                (\bio -> p [] [ text bio ])
+                            , case profile.bio of
+                                Nothing ->
+                                    text ""
+
+                                Just bio ->
+                                    p [] [ text bio ]
                             , if isViewingOwnProfile then
                                 text ""
 

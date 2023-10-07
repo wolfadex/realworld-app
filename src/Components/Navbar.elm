@@ -1,14 +1,14 @@
 module Components.Navbar exposing (view)
 
-import Api.User exposing (User)
+import Api
 import Html exposing (..)
-import Html.Attributes exposing (class, classList, href)
+import Html.Attributes exposing (class, classList)
 import Html.Events as Events
 import Route.Path exposing (Path)
 
 
 view :
-    { user : Maybe User
+    { user : Maybe Api.User
     , currentRoutePath : Path
     , onSignOut : msg
     }

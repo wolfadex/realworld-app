@@ -1,8 +1,8 @@
 module Auth exposing (User, onPageLoad, viewLoadingPage)
 
-import Api.User
+import Api
 import Auth.Action
-import Dict exposing (Dict)
+import Dict
 import Route exposing (Route)
 import Route.Path
 import Shared
@@ -10,11 +10,11 @@ import View exposing (View)
 
 
 type alias User =
-    Api.User.User
+    Api.User
 
 
 onPageLoad : Shared.Model -> Route () -> Auth.Action.Action User
-onPageLoad shared req =
+onPageLoad shared _ =
     case shared.user of
         Just user ->
             Auth.Action.loadPageWithUser user
@@ -28,5 +28,5 @@ onPageLoad shared req =
 
 
 viewLoadingPage : Shared.Model -> Route () -> View Never
-viewLoadingPage shared route =
+viewLoadingPage _ _ =
     View.none

@@ -1,8 +1,8 @@
 port module Effect exposing
     ( Effect
     , none, batch
-    , sendCmd, sendMsg
-    , pushRoute, replaceRoute, loadExternalUrl
+    , sendCmd
+    , pushRoute, replaceRoute
     , map, toCmd
     , signIn, signOut
     , saveUser, clearUser
@@ -12,8 +12,8 @@ port module Effect exposing
 
 @docs Effect
 @docs none, batch
-@docs sendCmd, sendMsg
-@docs pushRoute, replaceRoute, loadExternalUrl
+@docs sendCmd
+@docs pushRoute, replaceRoute
 
 @docs map, toCmd
 
@@ -25,12 +25,12 @@ port module Effect exposing
 
 -}
 
-import Api.User
+import Api
 import Browser.Navigation
 import Dict exposing (Dict)
 import Json.Decode as Json
 import Json.Encode as Encode
-import Route exposing (Route)
+import Route
 import Route.Path
 import Shared.Model
 import Shared.Msg
@@ -53,11 +53,10 @@ type Effect msg
       -- ROUTING
     | PushUrl String
     | ReplaceUrl String
-    | LoadExternalUrl String
       -- SHARED
     | SendSharedMsg Shared.Msg.Msg
       -- USERS
-    | SaveUser Api.User.User
+    | SaveUser Api.User
     | ClearUser
 
 
@@ -84,15 +83,6 @@ batch =
 sendCmd : Cmd msg -> Effect msg
 sendCmd =
     SendCmd
-
-
-{-| Send a message as an effect. Useful when emitting events from UI components.
--}
-sendMsg : msg -> Effect msg
-sendMsg msg =
-    Task.succeed msg
-        |> Task.perform identity
-        |> SendCmd
 
 
 
@@ -124,18 +114,11 @@ replaceRoute route =
     ReplaceUrl (Route.toString route)
 
 
-{-| Redirect users to a new URL, somewhere external your web application.
--}
-loadExternalUrl : String -> Effect msg
-loadExternalUrl =
-    LoadExternalUrl
-
-
 
 -- USERS
 
 
-signIn : Api.User.User -> Effect msg
+signIn : Api.User -> Effect msg
 signIn user =
     SendSharedMsg (Shared.Msg.SignedInUser user)
 
@@ -145,7 +128,7 @@ signOut =
     SendSharedMsg Shared.Msg.ClickedSignOut
 
 
-saveUser : Api.User.User -> Effect msg
+saveUser : Api.User -> Effect msg
 saveUser user =
     SaveUser user
 
@@ -179,9 +162,6 @@ map fn effect =
 
         ReplaceUrl url ->
             ReplaceUrl url
-
-        LoadExternalUrl url ->
-            LoadExternalUrl url
 
         SendSharedMsg sharedMsg ->
             SendSharedMsg sharedMsg
@@ -222,9 +202,6 @@ toCmd options effect =
         ReplaceUrl url ->
             Browser.Navigation.replaceUrl options.key url
 
-        LoadExternalUrl url ->
-            Browser.Navigation.load url
-
         SendSharedMsg sharedMsg ->
             Task.succeed sharedMsg
                 |> Task.perform options.fromSharedMsg
@@ -232,7 +209,7 @@ toCmd options effect =
         SaveUser user ->
             outgoing
                 { tag = "saveUser"
-                , data = Api.User.encode user
+                , data = Api.encodeUser user
                 }
 
         ClearUser ->

@@ -1,15 +1,15 @@
-module Pages.Home_ exposing (Model, Msg, page)
+module Pages.Home_ exposing (Model, Msg, Tab, page)
 
-import Api.Article exposing (Article)
-import Api.Article.Filters as Filters
+import Api
 import Api.Article.Tag exposing (Tag)
 import Api.Data exposing (Data)
-import Api.User exposing (User)
+import Article
 import Components.ArticleList
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList)
 import Html.Events as Events
+import Http
 import Layouts
 import Page exposing (Page)
 import Route exposing (Route)
@@ -34,7 +34,7 @@ page shared _ =
 
 
 type alias Model =
-    { listing : Data Api.Article.Listing
+    { listing : Data Article.Listing
     , page : Int
     , tags : Data (List Tag)
     , activeTab : Tab
@@ -42,7 +42,7 @@ type alias Model =
 
 
 type Tab
-    = FeedFor User
+    = FeedFor Api.User
     | Global
     | TagFilter Tag
 
@@ -66,7 +66,7 @@ init shared _ =
     in
     ( model
     , Effect.batch
-        [ fetchArticlesForTab shared model
+        [ fetchArticlesForTab model
         , Api.Article.Tag.list { onResponse = GotTags }
             |> Effect.sendCmd
         ]
@@ -74,42 +74,54 @@ init shared _ =
 
 
 fetchArticlesForTab :
-    Shared.Model
-    ->
-        { model
-            | page : Int
-            , activeTab : Tab
-        }
+    { model
+        | page : Int
+        , activeTab : Tab
+    }
     -> Effect Msg
-fetchArticlesForTab shared model =
+fetchArticlesForTab model =
     case model.activeTab of
         Global ->
-            Api.Article.list
-                { filters = Filters.create
-                , page = model.page
-                , token = Maybe.map .token shared.user
-                , onResponse = GotArticles
+            Api.getArticles
+                { params =
+                    { tag = Nothing
+                    , author = Nothing
+                    , favorited = Nothing
+                    , offset = Just ((model.page - 1) * pageLimit)
+                    , limit = Just pageLimit
+                    }
+                , toMsg = GotArticles model.page
                 }
                 |> Effect.sendCmd
 
         FeedFor user ->
-            Api.Article.feed
-                { token = user.token
-                , page = model.page
-                , onResponse = GotArticles
+            Api.getArticlesFeed
+                { authorization = { token = user.token }
+                , params =
+                    { offset = Just ((model.page - 1) * pageLimit)
+                    , limit = Just pageLimit
+                    }
+                , toMsg = GotArticles model.page
                 }
                 |> Effect.sendCmd
 
         TagFilter tag ->
-            Api.Article.list
-                { filters =
-                    Filters.create
-                        |> Filters.withTag tag
-                , page = model.page
-                , token = Maybe.map .token shared.user
-                , onResponse = GotArticles
+            Api.getArticles
+                { params =
+                    { tag = Just tag
+                    , author = Nothing
+                    , favorited = Nothing
+                    , offset = Just ((model.page - 1) * pageLimit)
+                    , limit = Just pageLimit
+                    }
+                , toMsg = GotArticles model.page
                 }
                 |> Effect.sendCmd
+
+
+pageLimit : Int
+pageLimit =
+    25
 
 
 
@@ -117,20 +129,32 @@ fetchArticlesForTab shared model =
 
 
 type Msg
-    = GotArticles (Data Api.Article.Listing)
+    = GotArticles Int (Result Http.Error Api.MultipleArticlesResponse)
     | GotTags (Data (List Tag))
     | SelectedTab Tab
-    | ClickedFavorite User Article
-    | ClickedUnfavorite User Article
+    | ClickedFavorite Api.User Api.Article
+    | ClickedUnfavorite Api.User Api.Article
     | ClickedPage Int
-    | UpdatedArticle (Data Article)
+    | UpdatedArticle (Result Http.Error Api.SingleArticleResponse)
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
-update shared msg model =
+update _ msg model =
     case msg of
-        GotArticles listing ->
-            ( { model | listing = listing }
+        GotArticles page_ response ->
+            ( { model
+                | listing =
+                    response
+                        |> Result.mapError (\_ -> [ "Articles error" ])
+                        |> Result.map
+                            (\{ articles, articlesCount } ->
+                                { articles = articles
+                                , page = page_
+                                , totalPages = articlesCount // pageLimit
+                                }
+                            )
+                        |> Api.Data.fromResult
+              }
             , Effect.none
             )
 
@@ -150,25 +174,25 @@ update shared msg model =
                     }
             in
             ( newModel
-            , fetchArticlesForTab shared newModel
+            , fetchArticlesForTab newModel
             )
 
         ClickedFavorite user article ->
             ( model
-            , Api.Article.favorite
-                { token = user.token
-                , slug = article.slug
-                , onResponse = UpdatedArticle
+            , Api.createArticleFavorite
+                { authorization = { token = user.token }
+                , params = { slug = article.slug }
+                , toMsg = UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
 
         ClickedUnfavorite user article ->
             ( model
-            , Api.Article.unfavorite
-                { token = user.token
-                , slug = article.slug
-                , onResponse = UpdatedArticle
+            , Api.deleteArticleFavorite
+                { authorization = { token = user.token }
+                , params = { slug = article.slug }
+                , toMsg = UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
@@ -183,19 +207,19 @@ update shared msg model =
                     }
             in
             ( newModel
-            , fetchArticlesForTab shared newModel
+            , fetchArticlesForTab newModel
             )
 
-        UpdatedArticle (Api.Data.Success article) ->
+        UpdatedArticle (Ok { article }) ->
             ( { model
                 | listing =
-                    Api.Data.map (Api.Article.updateArticle article)
+                    Api.Data.map (Article.updateListing article)
                         model.listing
               }
             , Effect.none
             )
 
-        UpdatedArticle _ ->
+        UpdatedArticle (Err _) ->
             ( model, Effect.none )
 
 

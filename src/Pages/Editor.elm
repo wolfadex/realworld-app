@@ -1,13 +1,12 @@
 module Pages.Editor exposing (Model, Msg, page)
 
-import Api.Article exposing (Article)
+import Api
 import Api.Data exposing (Data)
-import Api.User exposing (User)
 import Auth
 import Components.Editor exposing (Field, Form)
-import Dict exposing (Dict)
+import Dict
 import Effect exposing (Effect)
-import Html exposing (..)
+import Http
 import Layouts
 import Page exposing (Page)
 import Route exposing (Route)
@@ -33,12 +32,12 @@ page user shared route =
 
 type alias Model =
     { form : Form
-    , article : Data Article
+    , article : Data Api.Article
     }
 
 
 init : Shared.Model -> () -> ( Model, Effect Msg )
-init shared _ =
+init _ _ =
     ( { form =
             { title = ""
             , description = ""
@@ -56,13 +55,13 @@ init shared _ =
 
 
 type Msg
-    = SubmittedForm User
+    = SubmittedForm Api.User
     | Updated Field String
-    | GotArticle (Data Article)
+    | GotArticle (Result Http.Error Api.SingleArticleResponse)
 
 
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
-update route msg model =
+update _ msg model =
     case msg of
         Updated field value ->
             ( { model
@@ -77,33 +76,42 @@ update route msg model =
 
         SubmittedForm user ->
             ( model
-            , Api.Article.create
-                { token = user.token
-                , article =
-                    { title = model.form.title
-                    , description = model.form.description
-                    , body = model.form.body
-                    , tags =
-                        model.form.tags
-                            |> String.split ","
-                            |> List.map String.trim
+            , Api.createArticle
+                { authorization = { token = user.token }
+                , body =
+                    { article =
+                        { title = model.form.title
+                        , description = model.form.description
+                        , body = model.form.body
+                        , tagList =
+                            model.form.tags
+                                |> String.split ","
+                                |> List.map String.trim
+                                |> Just
+                        }
                     }
-                , onResponse = GotArticle
+                , toMsg = GotArticle
                 }
                 |> Effect.sendCmd
             )
 
-        GotArticle article ->
-            ( { model | article = article }
-            , case article of
-                Api.Data.Success newArticle ->
+        GotArticle response ->
+            ( { model
+                | article =
+                    response
+                        |> Result.map .article
+                        |> Result.mapError (\_ -> [ "Failed to create article" ])
+                        |> Api.Data.fromResult
+              }
+            , case response of
+                Ok { article } ->
                     Effect.pushRoute
-                        { path = Route.Path.Article_Slug_ { slug = newArticle.slug }
+                        { path = Route.Path.Article_Slug_ { slug = article.slug }
                         , query = Dict.empty
                         , hash = Nothing
                         }
 
-                _ ->
+                Err _ ->
                     Effect.none
             )
 
@@ -117,7 +125,7 @@ subscriptions _ =
 -- VIEW
 
 
-view : User -> Model -> View Msg
+view : Api.User -> Model -> View Msg
 view user model =
     { title = "New Article"
     , body =
