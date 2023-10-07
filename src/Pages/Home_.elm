@@ -67,7 +67,7 @@ init shared _ =
     ( model
     , Effect.batch
         [ fetchArticlesForTab model
-        , Api.Article.Tag.list { onResponse = GotTags }
+        , Api.getTags { toMsg = GotTags }
             |> Effect.sendCmd
         ]
     )
@@ -130,7 +130,7 @@ pageLimit =
 
 type Msg
     = GotArticles Int (Result Http.Error Api.MultipleArticlesResponse)
-    | GotTags (Data (List Tag))
+    | GotTags (Result Http.Error Api.TagsResponse)
     | SelectedTab Tab
     | ClickedFavorite Api.User Api.Article
     | ClickedUnfavorite Api.User Api.Article
@@ -158,8 +158,14 @@ update _ msg model =
             , Effect.none
             )
 
-        GotTags tags ->
-            ( { model | tags = tags }
+        GotTags response ->
+            ( { model
+                | tags =
+                    response
+                        |> Result.mapError (\_ -> [ "Tags error" ])
+                        |> Result.map .tags
+                        |> Api.Data.fromResult
+              }
             , Effect.none
             )
 
