@@ -1,7 +1,6 @@
 module Pages.Home_ exposing (Model, Msg, Tab, page)
 
 import Api
-import Api.Article.Tag exposing (Tag)
 import Api.Data exposing (Data)
 import Article
 import Components.ArticleList
@@ -36,7 +35,7 @@ page shared _ =
 type alias Model =
     { listing : Data Article.Listing
     , page : Int
-    , tags : Data (List Tag)
+    , tags : Data (List String)
     , activeTab : Tab
     }
 
@@ -44,7 +43,7 @@ type alias Model =
 type Tab
     = FeedFor Api.User
     | Global
-    | TagFilter Tag
+    | TagFilter String
 
 
 init : Shared.Model -> () -> ( Model, Effect Msg )
@@ -67,7 +66,7 @@ init shared _ =
     ( model
     , Effect.batch
         [ fetchArticlesForTab model
-        , Api.Article.Tag.list { onResponse = GotTags }
+        , Api.getTags { toMsg = GotTags }
             |> Effect.sendCmd
         ]
     )
@@ -130,7 +129,7 @@ pageLimit =
 
 type Msg
     = GotArticles Int (Result Http.Error Api.MultipleArticlesResponse)
-    | GotTags (Data (List Tag))
+    | GotTags (Result Http.Error Api.TagsResponse)
     | SelectedTab Tab
     | ClickedFavorite Api.User Api.Article
     | ClickedUnfavorite Api.User Api.Article
@@ -158,8 +157,14 @@ update _ msg model =
             , Effect.none
             )
 
-        GotTags tags ->
-            ( { model | tags = tags }
+        GotTags response ->
+            ( { model
+                | tags =
+                    response
+                        |> Result.mapError (\_ -> [ "Tags error" ])
+                        |> Result.map .tags
+                        |> Api.Data.fromResult
+              }
             , Effect.none
             )
 
@@ -298,7 +303,7 @@ viewTabs shared model =
         ]
 
 
-viewTags : Data (List Tag) -> Html Msg
+viewTags : Data (List String) -> Html Msg
 viewTags data =
     case data of
         Api.Data.Success tags ->
