@@ -6,7 +6,7 @@
   },
   "devDependencies": {
     "elm-land": "^0.19.4",
-    "elm-open-api": "^0.1.0-alpha.3",
+    "elm-open-api": "^0.1.0",
     "elm-review": "^2.10.3"
   }
 }
