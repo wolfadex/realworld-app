@@ -38,3 +38,7 @@ npm install
 npm run gen-api
 npm run dev
 ```
+
+# Versioning
+
+The `main` branch will always be setup to use the latest verison of elm-open-api. If you'd like to see the differences with an older version, refer to the [changelog](./CHANGELOG.md) for which version of elm-open-api matches with which state of this repo.
