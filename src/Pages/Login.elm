@@ -59,7 +59,7 @@ init shared _ =
 type Msg
     = Updated Field String
     | AttemptedSignIn
-    | GotUser (Result Http.Error Api.UserResponse)
+    | GotUser (Result (List String) Api.UserResponse)
 
 
 type Field
@@ -89,7 +89,17 @@ update _ msg model =
                         , password = model.password
                         }
                     }
-                , toMsg = GotUser
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.Login_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to login" ]
+                        )
+                        >> GotUser
                 }
                 |> Effect.sendCmd
             )
@@ -98,7 +108,6 @@ update _ msg model =
             let
                 user =
                     response
-                        |> Result.mapError (\_ -> [ "Failed to login" ])
                         |> Result.map .user
                         |> Api.Data.fromResult
             in

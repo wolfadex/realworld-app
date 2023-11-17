@@ -52,12 +52,35 @@ init _ { params } _ =
     , Effect.batch
         [ Api.getArticle
             { params = { slug = params.slug }
-            , toMsg = GotArticle
+            , toMsg =
+                Result.mapError
+                    (\err ->
+                        case err of
+                            Api.KnownBadStatus _ (Api.GetArticle_422 { errors }) ->
+                                errors.body
+
+                            _ ->
+                                [ "Failed to get article" ]
+                    )
+                    >> GotArticle
             }
             |> Effect.sendCmd
         , Api.getArticleComments
             { params = { slug = params.slug }
-            , toMsg = GotComments
+            , toMsg =
+                Result.mapError
+                    (\err ->
+                        case err of
+                            Api.KnownBadStatus _ (Api.GetArticleComments_401 _) ->
+                                [ "Please log in" ]
+
+                            Api.KnownBadStatus _ (Api.GetArticleComments_422 { errors }) ->
+                                errors.body
+
+                            _ ->
+                                [ "Failed to get article" ]
+                    )
+                    >> GotComments
             }
             |> Effect.sendCmd
         ]
@@ -69,19 +92,19 @@ init _ { params } _ =
 
 
 type Msg
-    = GotArticle (Result Http.Error Api.SingleArticleResponse)
+    = GotArticle (Result (List String) Api.SingleArticleResponse)
     | ClickedFavorite Api.User Api.Article
     | ClickedUnfavorite Api.User Api.Article
     | ClickedDeleteArticle Api.User Api.Article
     | DeletedArticle
-    | GotAuthor (Result Http.Error Api.ProfileResponse)
+    | GotAuthor (Result (List String) Api.ProfileResponse)
     | ClickedFollow Api.User Api.Profile
     | ClickedUnfollow Api.User Api.Profile
-    | GotComments (Result Http.Error Api.MultipleCommentsResponse)
+    | GotComments (Result (List String) Api.MultipleCommentsResponse)
     | ClickedDeleteComment Api.User Api.Article Api.Comment
     | DeletedComment Int
     | SubmittedCommentForm Api.User Api.Article
-    | CreatedComment (Result Http.Error Api.SingleCommentResponse)
+    | CreatedComment (Result (List String) Api.SingleCommentResponse)
     | UpdatedCommentText String
 
 
@@ -92,7 +115,6 @@ update msg model =
             let
                 article =
                     response
-                        |> Result.mapError (\_ -> [ "Failed to get article" ])
                         |> Result.map .article
                         |> Api.Data.fromResult
             in
@@ -105,7 +127,20 @@ update msg model =
             , Api.createArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
-                , toMsg = GotArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to favorite article" ]
+                        )
+                        >> GotArticle
                 }
                 |> Effect.sendCmd
             )
@@ -115,7 +150,20 @@ update msg model =
             , Api.deleteArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
-                , toMsg = GotArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to unfavorite article" ]
+                        )
+                        >> GotArticle
                 }
                 |> Effect.sendCmd
             )
@@ -144,7 +192,6 @@ update msg model =
                 profile : Api.Data.Data Api.Profile
                 profile =
                     response
-                        |> Result.mapError (\_ -> [ "Failed to get author" ])
                         |> Result.map .profile
                         |> Api.Data.fromResult
 
@@ -166,7 +213,20 @@ update msg model =
             , Api.followUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
-                , toMsg = GotAuthor
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.FollowUserByUsername_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.FollowUserByUsername_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to follow user" ]
+                        )
+                        >> GotAuthor
                 }
                 |> Effect.sendCmd
             )
@@ -176,7 +236,20 @@ update msg model =
             , Api.unfollowUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
-                , toMsg = GotAuthor
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to unfollow user" ]
+                        )
+                        >> GotAuthor
                 }
                 |> Effect.sendCmd
             )
@@ -185,7 +258,6 @@ update msg model =
             let
                 comments =
                     response
-                        |> Result.mapError (\_ -> [ "Failed to get comments" ])
                         |> Result.map .comments
                         |> Api.Data.fromResult
             in
@@ -208,7 +280,20 @@ update msg model =
                     { authorization = { token = user.token }
                     , params = { slug = article.slug }
                     , body = { comment = { body = model.commentText } }
-                    , toMsg = CreatedComment
+                    , toMsg =
+                        Result.mapError
+                            (\err ->
+                                case err of
+                                    Api.KnownBadStatus _ (Api.CreateArticleComment_401 _) ->
+                                        [ "Please log in" ]
+
+                                    Api.KnownBadStatus _ (Api.CreateArticleComment_422 { errors }) ->
+                                        errors.body
+
+                                    _ ->
+                                        [ "Failed to comment" ]
+                            )
+                            >> CreatedComment
                     }
                     |> Effect.sendCmd
                 )

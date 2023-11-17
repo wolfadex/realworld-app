@@ -57,7 +57,7 @@ init _ _ =
 type Msg
     = SubmittedForm Api.User
     | Updated Field String
-    | GotArticle (Result Http.Error Api.SingleArticleResponse)
+    | GotArticle (Result (List String) Api.SingleArticleResponse)
 
 
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
@@ -90,7 +90,20 @@ update _ msg model =
                                 |> Just
                         }
                     }
-                , toMsg = GotArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case Debug.log "create article error" err of
+                                Api.KnownBadStatus _ (Api.CreateArticle_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.CreateArticle_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to create article" ]
+                        )
+                        >> GotArticle
                 }
                 |> Effect.sendCmd
             )
@@ -100,7 +113,6 @@ update _ msg model =
                 | article =
                     response
                         |> Result.map .article
-                        |> Result.mapError (\_ -> [ "Failed to create article" ])
                         |> Api.Data.fromResult
               }
             , case response of

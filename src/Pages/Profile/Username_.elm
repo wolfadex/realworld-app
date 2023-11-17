@@ -59,7 +59,20 @@ init _ { params } _ =
     , Effect.batch
         [ Api.getProfileByUsername
             { params = params
-            , toMsg = GotProfile
+            , toMsg =
+                Result.mapError
+                    (\err ->
+                        case err of
+                            Api.KnownBadStatus _ (Api.GetProfileByUsername_401 _) ->
+                                [ "Please log in" ]
+
+                            Api.KnownBadStatus _ (Api.GetProfileByUsername_422 { errors }) ->
+                                errors.body
+
+                            _ ->
+                                [ "Failed to load user profile" ]
+                    )
+                    >> GotProfile
             }
             |> Effect.sendCmd
         , fetchArticlesBy params.username 1
@@ -82,7 +95,20 @@ fetchArticlesBy username page_ =
             , offset = Just ((page_ - 1) * pageLimit)
             , limit = Just pageLimit
             }
-        , toMsg = GotArticles page_
+        , toMsg =
+            Result.mapError
+                (\err ->
+                    case err of
+                        Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                            [ "Please log in" ]
+
+                        Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                            errors.body
+
+                        _ ->
+                            [ "Failed to get articles" ]
+                )
+                >> GotArticles page_
         }
         |> Effect.sendCmd
 
@@ -97,7 +123,20 @@ fetchArticlesFavoritedBy username page_ =
             , offset = Just ((page_ - 1) * pageLimit)
             , limit = Just pageLimit
             }
-        , toMsg = GotArticles page_
+        , toMsg =
+            Result.mapError
+                (\err ->
+                    case err of
+                        Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                            [ "Please log in" ]
+
+                        Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                            errors.body
+
+                        _ ->
+                            [ "Failed to get articles" ]
+                )
+                >> GotArticles page_
         }
         |> Effect.sendCmd
 
@@ -107,12 +146,12 @@ fetchArticlesFavoritedBy username page_ =
 
 
 type Msg
-    = GotProfile (Result Http.Error Api.ProfileResponse)
-    | GotArticles Int (Result Http.Error Api.MultipleArticlesResponse)
+    = GotProfile (Result (List String) Api.ProfileResponse)
+    | GotArticles Int (Result (List String) Api.MultipleArticlesResponse)
     | Clicked Tab
     | ClickedFavorite Api.User Api.Article
     | ClickedUnfavorite Api.User Api.Article
-    | UpdatedArticle (Result Http.Error Api.SingleArticleResponse)
+    | UpdatedArticle (Result (List String) Api.SingleArticleResponse)
     | ClickedFollow Api.User Api.Profile
     | ClickedUnfollow Api.User Api.Profile
     | ClickedPage Int
@@ -125,7 +164,6 @@ update _ msg model =
             ( { model
                 | profile =
                     profile
-                        |> Result.mapError (\_ -> [ "Profile error" ])
                         |> Result.map .profile
                         |> Api.Data.fromResult
               }
@@ -137,7 +175,20 @@ update _ msg model =
             , Api.followUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
-                , toMsg = GotProfile
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.FollowUserByUsername_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.FollowUserByUsername_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to follow user" ]
+                        )
+                        >> GotProfile
                 }
                 |> Effect.sendCmd
             )
@@ -147,7 +198,20 @@ update _ msg model =
             , Api.unfollowUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
-                , toMsg = GotProfile
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to unfollow user" ]
+                        )
+                        >> GotProfile
                 }
                 |> Effect.sendCmd
             )
@@ -156,7 +220,6 @@ update _ msg model =
             ( { model
                 | listing =
                     response
-                        |> Result.mapError (\_ -> [ "Articles error" ])
                         |> Result.map
                             (\{ articles, articlesCount } ->
                                 { articles = articles
@@ -192,7 +255,20 @@ update _ msg model =
             , Api.createArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
-                , toMsg = UpdatedArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to favorite article" ]
+                        )
+                        >> UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
@@ -202,7 +278,20 @@ update _ msg model =
             , Api.deleteArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
-                , toMsg = UpdatedArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to unfavorite article" ]
+                        )
+                        >> UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
@@ -280,12 +369,11 @@ viewProfile shared profile model =
                         [ div [ class "col-xs-12 col-md-10 offset-md-1" ]
                             [ img [ class "user-img", src profile.image ] []
                             , h4 [] [ text profile.username ]
-                            , case profile.bio of
-                                Nothing ->
-                                    text ""
-
-                                Just bio ->
-                                    p [] [ text bio ]
+                            , -- case profile.bio of
+                              --     Nothing ->
+                              --         text ""
+                              --     Just bio ->
+                              p [] [ text profile.bio ]
                             , if isViewingOwnProfile then
                                 text ""
 

@@ -46,7 +46,17 @@ init _ { params } _ =
       }
     , Api.getArticle
         { params = { slug = params.articleSlug }
-        , toMsg = LoadedInitialArticle
+        , toMsg =
+            Result.mapError
+                (\err ->
+                    case err of
+                        Api.KnownBadStatus _ (Api.GetArticle_422 { errors }) ->
+                            errors.body
+
+                        _ ->
+                            [ "Failed to get article" ]
+                )
+                >> LoadedInitialArticle
         }
         |> Effect.sendCmd
     )
@@ -59,8 +69,8 @@ init _ { params } _ =
 type Msg
     = SubmittedForm Api.User Form
     | Updated Field String
-    | UpdatedArticle (Result Http.Error Api.SingleArticleResponse)
-    | LoadedInitialArticle (Result Http.Error Api.SingleArticleResponse)
+    | UpdatedArticle (Result (List String) Api.SingleArticleResponse)
+    | LoadedInitialArticle (Result (List String) Api.SingleArticleResponse)
 
 
 update : Route { articleSlug : String } -> Msg -> Model -> ( Model, Effect Msg )
@@ -106,7 +116,20 @@ update _ msg model =
                         , title = Just form.title
                         }
                     }
-                , toMsg = UpdatedArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.UpdateArticle_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.UpdateArticle_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to update article" ]
+                        )
+                        >> UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
@@ -116,7 +139,6 @@ update _ msg model =
                 | article =
                     response
                         |> Result.map .article
-                        |> Result.mapError (\_ -> [ "Failed to update article" ])
                         |> Api.Data.fromResult
               }
             , case response of

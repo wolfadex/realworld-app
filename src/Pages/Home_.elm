@@ -66,7 +66,19 @@ init shared _ =
     ( model
     , Effect.batch
         [ fetchArticlesForTab model
-        , Api.getTags { toMsg = GotTags }
+        , Api.getTags
+            { toMsg =
+                Result.mapError
+                    (\err ->
+                        case err of
+                            Api.KnownBadStatus _ (Api.GetTags_422 { errors }) ->
+                                errors.body
+
+                            _ ->
+                                [ "Failed to get tags" ]
+                    )
+                    >> GotTags
+            }
             |> Effect.sendCmd
         ]
     )
@@ -89,7 +101,20 @@ fetchArticlesForTab model =
                     , offset = Just ((model.page - 1) * pageLimit)
                     , limit = Just pageLimit
                     }
-                , toMsg = GotArticles model.page
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to get articles" ]
+                        )
+                        >> GotArticles model.page
                 }
                 |> Effect.sendCmd
 
@@ -100,7 +125,20 @@ fetchArticlesForTab model =
                     { offset = Just ((model.page - 1) * pageLimit)
                     , limit = Just pageLimit
                     }
-                , toMsg = GotArticles model.page
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.GetArticlesFeed_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.GetArticlesFeed_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to get articles" ]
+                        )
+                        >> GotArticles model.page
                 }
                 |> Effect.sendCmd
 
@@ -113,7 +151,20 @@ fetchArticlesForTab model =
                     , offset = Just ((model.page - 1) * pageLimit)
                     , limit = Just pageLimit
                     }
-                , toMsg = GotArticles model.page
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to get articles" ]
+                        )
+                        >> GotArticles model.page
                 }
                 |> Effect.sendCmd
 
@@ -128,13 +179,13 @@ pageLimit =
 
 
 type Msg
-    = GotArticles Int (Result Http.Error Api.MultipleArticlesResponse)
-    | GotTags (Result Http.Error Api.TagsResponse)
+    = GotArticles Int (Result (List String) Api.MultipleArticlesResponse)
+    | GotTags (Result (List String) Api.TagsResponse)
     | SelectedTab Tab
     | ClickedFavorite Api.User Api.Article
     | ClickedUnfavorite Api.User Api.Article
     | ClickedPage Int
-    | UpdatedArticle (Result Http.Error Api.SingleArticleResponse)
+    | UpdatedArticle (Result (List String) Api.SingleArticleResponse)
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -144,7 +195,6 @@ update _ msg model =
             ( { model
                 | listing =
                     response
-                        |> Result.mapError (\_ -> [ "Articles error" ])
                         |> Result.map
                             (\{ articles, articlesCount } ->
                                 { articles = articles
@@ -161,7 +211,6 @@ update _ msg model =
             ( { model
                 | tags =
                     response
-                        |> Result.mapError (\_ -> [ "Tags error" ])
                         |> Result.map .tags
                         |> Api.Data.fromResult
               }
@@ -187,7 +236,20 @@ update _ msg model =
             , Api.createArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
-                , toMsg = UpdatedArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to favorite article" ]
+                        )
+                        >> UpdatedArticle
                 }
                 |> Effect.sendCmd
             )
@@ -197,7 +259,20 @@ update _ msg model =
             , Api.deleteArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
-                , toMsg = UpdatedArticle
+                , toMsg =
+                    Result.mapError
+                        (\err ->
+                            case err of
+                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_401 _) ->
+                                    [ "Please log in" ]
+
+                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_422 { errors }) ->
+                                    errors.body
+
+                                _ ->
+                                    [ "Failed to unfavorite article" ]
+                        )
+                        >> UpdatedArticle
                 }
                 |> Effect.sendCmd
             )

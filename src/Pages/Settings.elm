@@ -76,7 +76,7 @@ init shared _ =
 type Msg
     = Updated Field String
     | SubmittedForm Api.User
-    | GotUser (Result Http.Error Api.UserResponse)
+    | GotUser (Result (List String) Api.UserResponse)
 
 
 type Field
@@ -119,7 +119,20 @@ update msg model =
                             , username = Just model.username
                             }
                         }
-                    , toMsg = GotUser
+                    , toMsg =
+                        Result.mapError
+                            (\err ->
+                                case err of
+                                    Api.KnownBadStatus _ (Api.UpdateCurrentUser_401 _) ->
+                                        [ "Please log in" ]
+
+                                    Api.KnownBadStatus _ (Api.UpdateCurrentUser_422 { errors }) ->
+                                        errors.body
+
+                                    _ ->
+                                        [ "Failed to update user" ]
+                            )
+                            >> GotUser
                     }
             )
 
@@ -127,7 +140,6 @@ update msg model =
             let
                 userResponse =
                     response
-                        |> Result.mapError (\_ -> [ "Faied to update user" ])
                         |> Result.map .user
                         |> Api.Data.fromResult
             in
