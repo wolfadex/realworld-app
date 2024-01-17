@@ -369,11 +369,12 @@ viewProfile shared profile model =
                         [ div [ class "col-xs-12 col-md-10 offset-md-1" ]
                             [ img [ class "user-img", src profile.image ] []
                             , h4 [] [ text profile.username ]
-                            , -- case profile.bio of
-                              --     Nothing ->
-                              --         text ""
-                              --     Just bio ->
-                              p [] [ text profile.bio ]
+                            , case profile.bio of
+                                Nothing ->
+                                    text ""
+
+                                Just bio ->
+                                    p [] [ text bio ]
                             , if isViewingOwnProfile then
                                 text ""
 
