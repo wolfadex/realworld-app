@@ -5,8 +5,8 @@
     "review": "elm-review --watch --fix"
   },
   "devDependencies": {
-    "elm-land": "^0.19.4",
-    "elm-open-api": "^0.2.0",
-    "elm-review": "^2.10.3"
+    "elm-land": "^0.20.0",
+    "elm-open-api": "^0.2.2",
+    "elm-review": "^2.11.1"
   }
 }

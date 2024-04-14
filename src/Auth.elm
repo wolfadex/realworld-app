@@ -1,4 +1,4 @@
-module Auth exposing (User, onPageLoad, viewLoadingPage)
+module Auth exposing (User, onPageLoad, viewCustomPage, viewLoadingPage)
 
 import Api
 import Auth.Action
@@ -29,4 +29,9 @@ onPageLoad shared _ =
 
 viewLoadingPage : Shared.Model -> Route () -> View Never
 viewLoadingPage _ _ =
+    View.none
+
+
+viewCustomPage : Shared.Model -> Route () -> View Never
+viewCustomPage shared route =
     View.none
