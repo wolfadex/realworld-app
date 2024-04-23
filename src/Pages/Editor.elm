@@ -1,9 +1,10 @@
 module Pages.Editor exposing (Model, Msg, page)
 
-import Api
 import Api.Data exposing (Data)
 import Auth
 import Components.Editor exposing (Field, Form)
+import Conduit.Api
+import Conduit.OpenApi
 import Dict
 import Effect exposing (Effect)
 import Http
@@ -32,7 +33,7 @@ page user shared route =
 
 type alias Model =
     { form : Form
-    , article : Data Api.Article
+    , article : Data Conduit.Api.Article
     }
 
 
@@ -55,9 +56,9 @@ init _ _ =
 
 
 type Msg
-    = SubmittedForm Api.User
+    = SubmittedForm Conduit.Api.User
     | Updated Field String
-    | GotArticle (Result (List String) Api.SingleArticleResponse)
+    | GotArticle (Result (List String) Conduit.Api.SingleArticleResponse)
 
 
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
@@ -76,7 +77,7 @@ update _ msg model =
 
         SubmittedForm user ->
             ( model
-            , Api.createArticle
+            , Conduit.Api.createArticle
                 { authorization = { token = user.token }
                 , body =
                     { article =
@@ -94,10 +95,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case Debug.log "create article error" err of
-                                Api.KnownBadStatus _ (Api.CreateArticle_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticle_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.CreateArticle_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticle_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -137,7 +138,7 @@ subscriptions _ =
 -- VIEW
 
 
-view : Api.User -> Model -> View Msg
+view : Conduit.Api.User -> Model -> View Msg
 view user model =
     { title = "New Article"
     , body =

@@ -1,9 +1,10 @@
 module Pages.Editor.ArticleSlug_ exposing (Model, Msg, page)
 
-import Api
 import Api.Data exposing (Data)
 import Auth
 import Components.Editor exposing (Field, Form)
+import Conduit.Api
+import Conduit.OpenApi
 import Dict
 import Effect exposing (Effect)
 import Html exposing (..)
@@ -34,7 +35,7 @@ page user shared route =
 type alias Model =
     { slug : String
     , form : Maybe Form
-    , article : Data Api.Article
+    , article : Data Conduit.Api.Article
     }
 
 
@@ -44,13 +45,13 @@ init _ { params } _ =
       , form = Nothing
       , article = Api.Data.Loading
       }
-    , Api.getArticle
+    , Conduit.Api.getArticle
         { params = { slug = params.articleSlug }
         , toMsg =
             Result.mapError
                 (\err ->
                     case err of
-                        Api.KnownBadStatus _ (Api.GetArticle_422 { errors }) ->
+                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticle_422 { errors }) ->
                             errors.body
 
                         _ ->
@@ -67,10 +68,10 @@ init _ { params } _ =
 
 
 type Msg
-    = SubmittedForm Api.User Form
+    = SubmittedForm Conduit.Api.User Form
     | Updated Field String
-    | UpdatedArticle (Result (List String) Api.SingleArticleResponse)
-    | LoadedInitialArticle (Result (List String) Api.SingleArticleResponse)
+    | UpdatedArticle (Result (List String) Conduit.Api.SingleArticleResponse)
+    | LoadedInitialArticle (Result (List String) Conduit.Api.SingleArticleResponse)
 
 
 update : Route { articleSlug : String } -> Msg -> Model -> ( Model, Effect Msg )
@@ -106,7 +107,7 @@ update _ msg model =
 
         SubmittedForm user form ->
             ( model
-            , Api.updateArticle
+            , Conduit.Api.updateArticle
                 { authorization = { token = user.token }
                 , params = { slug = model.slug }
                 , body =
@@ -120,10 +121,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.UpdateArticle_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateArticle_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.UpdateArticle_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateArticle_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -163,7 +164,7 @@ subscriptions _ =
 -- VIEW
 
 
-view : Api.User -> Model -> View Msg
+view : Conduit.Api.User -> Model -> View Msg
 view user model =
     { title = "Editing Article"
     , body =

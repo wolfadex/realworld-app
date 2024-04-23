@@ -1,8 +1,9 @@
 module Pages.Article.Slug_ exposing (Model, Msg, page)
 
-import Api
 import Api.Data exposing (Data)
 import Components.IconButton as IconButton
+import Conduit.Api
+import Conduit.OpenApi
 import Dict
 import Effect exposing (Effect)
 import Html exposing (..)
@@ -37,8 +38,8 @@ page shared route =
 
 
 type alias Model =
-    { article : Data Api.Article
-    , comments : Data (List Api.Comment)
+    { article : Data Conduit.Api.Article
+    , comments : Data (List Conduit.Api.Comment)
     , commentText : String
     }
 
@@ -50,13 +51,13 @@ init _ { params } _ =
       , commentText = ""
       }
     , Effect.batch
-        [ Api.getArticle
+        [ Conduit.Api.getArticle
             { params = { slug = params.slug }
             , toMsg =
                 Result.mapError
                     (\err ->
                         case err of
-                            Api.KnownBadStatus _ (Api.GetArticle_422 { errors }) ->
+                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticle_422 { errors }) ->
                                 errors.body
 
                             _ ->
@@ -65,16 +66,16 @@ init _ { params } _ =
                     >> GotArticle
             }
             |> Effect.sendCmd
-        , Api.getArticleComments
+        , Conduit.Api.getArticleComments
             { params = { slug = params.slug }
             , toMsg =
                 Result.mapError
                     (\err ->
                         case err of
-                            Api.KnownBadStatus _ (Api.GetArticleComments_401 _) ->
+                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticleComments_401 _) ->
                                 [ "Please log in" ]
 
-                            Api.KnownBadStatus _ (Api.GetArticleComments_422 { errors }) ->
+                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticleComments_422 { errors }) ->
                                 errors.body
 
                             _ ->
@@ -92,19 +93,19 @@ init _ { params } _ =
 
 
 type Msg
-    = GotArticle (Result (List String) Api.SingleArticleResponse)
-    | ClickedFavorite Api.User Api.Article
-    | ClickedUnfavorite Api.User Api.Article
-    | ClickedDeleteArticle Api.User Api.Article
+    = GotArticle (Result (List String) Conduit.Api.SingleArticleResponse)
+    | ClickedFavorite Conduit.Api.User Conduit.Api.Article
+    | ClickedUnfavorite Conduit.Api.User Conduit.Api.Article
+    | ClickedDeleteArticle Conduit.Api.User Conduit.Api.Article
     | DeletedArticle
-    | GotAuthor (Result (List String) Api.ProfileResponse)
-    | ClickedFollow Api.User Api.Profile
-    | ClickedUnfollow Api.User Api.Profile
-    | GotComments (Result (List String) Api.MultipleCommentsResponse)
-    | ClickedDeleteComment Api.User Api.Article Api.Comment
+    | GotAuthor (Result (List String) Conduit.Api.ProfileResponse)
+    | ClickedFollow Conduit.Api.User Conduit.Api.Profile
+    | ClickedUnfollow Conduit.Api.User Conduit.Api.Profile
+    | GotComments (Result (List String) Conduit.Api.MultipleCommentsResponse)
+    | ClickedDeleteComment Conduit.Api.User Conduit.Api.Article Conduit.Api.Comment
     | DeletedComment Int
-    | SubmittedCommentForm Api.User Api.Article
-    | CreatedComment (Result (List String) Api.SingleCommentResponse)
+    | SubmittedCommentForm Conduit.Api.User Conduit.Api.Article
+    | CreatedComment (Result (List String) Conduit.Api.SingleCommentResponse)
     | UpdatedCommentText String
 
 
@@ -124,17 +125,17 @@ update msg model =
 
         ClickedFavorite user article ->
             ( model
-            , Api.createArticleFavorite
+            , Conduit.Api.createArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -147,17 +148,17 @@ update msg model =
 
         ClickedUnfavorite user article ->
             ( model
-            , Api.deleteArticleFavorite
+            , Conduit.Api.deleteArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -170,7 +171,7 @@ update msg model =
 
         ClickedDeleteArticle user article ->
             ( model
-            , Api.deleteArticle
+            , Conduit.Api.deleteArticle
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
                 , toMsg = \_ -> DeletedArticle
@@ -189,13 +190,13 @@ update msg model =
 
         GotAuthor response ->
             let
-                profile : Api.Data.Data Api.Profile
+                profile : Api.Data.Data Conduit.Api.Profile
                 profile =
                     response
                         |> Result.map .profile
                         |> Api.Data.fromResult
 
-                updateAuthor : Api.Article -> Api.Article
+                updateAuthor : Conduit.Api.Article -> Conduit.Api.Article
                 updateAuthor article =
                     case profile of
                         Api.Data.Success author ->
@@ -210,17 +211,17 @@ update msg model =
 
         ClickedFollow user profile ->
             ( model
-            , Api.followUserByUsername
+            , Conduit.Api.followUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.FollowUserByUsername_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.FollowUserByUsername_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.FollowUserByUsername_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.FollowUserByUsername_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -233,17 +234,17 @@ update msg model =
 
         ClickedUnfollow user profile ->
             ( model
-            , Api.unfollowUserByUsername
+            , Conduit.Api.unfollowUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UnfollowUserByUsername_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UnfollowUserByUsername_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -276,7 +277,7 @@ update msg model =
 
             else
                 ( { model | commentText = "" }
-                , Api.createArticleComment
+                , Conduit.Api.createArticleComment
                     { authorization = { token = user.token }
                     , params = { slug = article.slug }
                     , body = { comment = { body = model.commentText } }
@@ -284,10 +285,10 @@ update msg model =
                         Result.mapError
                             (\err ->
                                 case err of
-                                    Api.KnownBadStatus _ (Api.CreateArticleComment_401 _) ->
+                                    Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleComment_401 _) ->
                                         [ "Please log in" ]
 
-                                    Api.KnownBadStatus _ (Api.CreateArticleComment_422 { errors }) ->
+                                    Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleComment_422 { errors }) ->
                                         errors.body
 
                                     _ ->
@@ -310,7 +311,7 @@ update msg model =
 
         ClickedDeleteComment user article comment ->
             ( model
-            , Api.deleteArticleComment
+            , Conduit.Api.deleteArticleComment
                 { authorization = { token = user.token }
                 , params =
                     { slug = article.slug
@@ -323,7 +324,7 @@ update msg model =
 
         DeletedComment id ->
             let
-                removeComment : List Api.Comment -> List Api.Comment
+                removeComment : List Conduit.Api.Comment -> List Conduit.Api.Comment
                 removeComment =
                     List.filter (\comment -> comment.id /= id)
             in
@@ -355,7 +356,7 @@ view shared model =
             }
 
 
-viewArticle : Shared.Model -> Model -> Api.Article -> Html Msg
+viewArticle : Shared.Model -> Model -> Conduit.Api.Article -> Html Msg
 viewArticle shared model article =
     div [ class "article-page" ]
         [ div [ class "banner" ]
@@ -385,7 +386,7 @@ viewArticle shared model article =
         ]
 
 
-viewArticleMeta : Shared.Model -> Model -> Api.Article -> Html Msg
+viewArticleMeta : Shared.Model -> Model -> Conduit.Api.Article -> Html Msg
 viewArticleMeta shared _ article =
     div [ class "article-meta" ] <|
         List.concat
@@ -412,7 +413,7 @@ viewArticleMeta shared _ article =
             ]
 
 
-viewControls : Api.Article -> Api.User -> List (Html Msg)
+viewControls : Conduit.Api.Article -> Conduit.Api.User -> List (Html Msg)
 viewControls article user =
     if article.author.username == user.username then
         [ a
@@ -464,7 +465,7 @@ viewControls article user =
         ]
 
 
-viewCommentSection : Shared.Model -> Model -> Api.Article -> Html Msg
+viewCommentSection : Shared.Model -> Model -> Conduit.Api.Article -> Html Msg
 viewCommentSection shared model article =
     div [ class "row" ]
         [ div [ class "col-xs-12 col-md-8 offset-md-2" ] <|
@@ -485,7 +486,7 @@ viewCommentSection shared model article =
         ]
 
 
-viewCommentForm : Model -> Api.User -> Api.Article -> Html Msg
+viewCommentForm : Model -> Conduit.Api.User -> Conduit.Api.Article -> Html Msg
 viewCommentForm model user article =
     form [ class "card comment-form", Events.onSubmit (SubmittedCommentForm user article) ]
         [ div [ class "card-block" ]
@@ -505,7 +506,7 @@ viewCommentForm model user article =
         ]
 
 
-viewComment : Maybe Api.User -> Api.Article -> Api.Comment -> Html Msg
+viewComment : Maybe Conduit.Api.User -> Conduit.Api.Article -> Conduit.Api.Comment -> Html Msg
 viewComment currentUser article comment =
     let
         viewCommentActions =

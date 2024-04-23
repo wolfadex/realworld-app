@@ -1,11 +1,12 @@
 module Pages.Profile.Username_ exposing (Model, Msg, Tab, page)
 
-import Api
 import Api.Data exposing (Data)
 import Article
 import Components.ArticleList
 import Components.IconButton as IconButton
 import Components.NotFound
+import Conduit.Api
+import Conduit.OpenApi
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList, src)
@@ -36,7 +37,7 @@ page shared req =
 
 type alias Model =
     { username : String
-    , profile : Data Api.Profile
+    , profile : Data Conduit.Api.Profile
     , listing : Data Article.Listing
     , selectedTab : Tab
     , page : Int
@@ -57,16 +58,16 @@ init _ { params } _ =
       , page = 1
       }
     , Effect.batch
-        [ Api.getProfileByUsername
+        [ Conduit.Api.getProfileByUsername
             { params = params
             , toMsg =
                 Result.mapError
                     (\err ->
                         case err of
-                            Api.KnownBadStatus _ (Api.GetProfileByUsername_401 _) ->
+                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetProfileByUsername_401 _) ->
                                 [ "Please log in" ]
 
-                            Api.KnownBadStatus _ (Api.GetProfileByUsername_422 { errors }) ->
+                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetProfileByUsername_422 { errors }) ->
                                 errors.body
 
                             _ ->
@@ -87,7 +88,7 @@ pageLimit =
 
 fetchArticlesBy : String -> Int -> Effect Msg
 fetchArticlesBy username page_ =
-    Api.getArticles
+    Conduit.Api.getArticles
         { params =
             { tag = Nothing
             , author = Just username
@@ -99,10 +100,10 @@ fetchArticlesBy username page_ =
             Result.mapError
                 (\err ->
                     case err of
-                        Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
                             [ "Please log in" ]
 
-                        Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
                             errors.body
 
                         _ ->
@@ -115,7 +116,7 @@ fetchArticlesBy username page_ =
 
 fetchArticlesFavoritedBy : String -> Int -> Effect Msg
 fetchArticlesFavoritedBy username page_ =
-    Api.getArticles
+    Conduit.Api.getArticles
         { params =
             { tag = Nothing
             , author = Nothing
@@ -127,10 +128,10 @@ fetchArticlesFavoritedBy username page_ =
             Result.mapError
                 (\err ->
                     case err of
-                        Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
                             [ "Please log in" ]
 
-                        Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
                             errors.body
 
                         _ ->
@@ -146,14 +147,14 @@ fetchArticlesFavoritedBy username page_ =
 
 
 type Msg
-    = GotProfile (Result (List String) Api.ProfileResponse)
-    | GotArticles Int (Result (List String) Api.MultipleArticlesResponse)
+    = GotProfile (Result (List String) Conduit.Api.ProfileResponse)
+    | GotArticles Int (Result (List String) Conduit.Api.MultipleArticlesResponse)
     | Clicked Tab
-    | ClickedFavorite Api.User Api.Article
-    | ClickedUnfavorite Api.User Api.Article
-    | UpdatedArticle (Result (List String) Api.SingleArticleResponse)
-    | ClickedFollow Api.User Api.Profile
-    | ClickedUnfollow Api.User Api.Profile
+    | ClickedFavorite Conduit.Api.User Conduit.Api.Article
+    | ClickedUnfavorite Conduit.Api.User Conduit.Api.Article
+    | UpdatedArticle (Result (List String) Conduit.Api.SingleArticleResponse)
+    | ClickedFollow Conduit.Api.User Conduit.Api.Profile
+    | ClickedUnfollow Conduit.Api.User Conduit.Api.Profile
     | ClickedPage Int
 
 
@@ -172,17 +173,17 @@ update _ msg model =
 
         ClickedFollow user profile ->
             ( model
-            , Api.followUserByUsername
+            , Conduit.Api.followUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.FollowUserByUsername_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.FollowUserByUsername_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.FollowUserByUsername_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.FollowUserByUsername_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -195,17 +196,17 @@ update _ msg model =
 
         ClickedUnfollow user profile ->
             ( model
-            , Api.unfollowUserByUsername
+            , Conduit.Api.unfollowUserByUsername
                 { authorization = { token = user.token }
                 , params = { username = profile.username }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UnfollowUserByUsername_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.UnfollowUserByUsername_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UnfollowUserByUsername_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -252,17 +253,17 @@ update _ msg model =
 
         ClickedFavorite user article ->
             ( model
-            , Api.createArticleFavorite
+            , Conduit.Api.createArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -275,17 +276,17 @@ update _ msg model =
 
         ClickedUnfavorite user article ->
             ( model
-            , Api.deleteArticleFavorite
+            , Conduit.Api.deleteArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -354,7 +355,7 @@ view shared model =
     }
 
 
-viewProfile : Shared.Model -> Api.Profile -> Model -> Html Msg
+viewProfile : Shared.Model -> Conduit.Api.Profile -> Model -> Html Msg
 viewProfile shared profile model =
     let
         isViewingOwnProfile : Bool

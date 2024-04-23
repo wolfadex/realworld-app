@@ -1,6 +1,6 @@
 module UnitTests.Api.Profile exposing (suite)
 
-import Api.Profile
+import Conduit.Api.Profile
 import Expect
 import Json.Decode as Json
 import Test exposing (..)
@@ -8,7 +8,7 @@ import Test exposing (..)
 
 suite : Test
 suite =
-    describe "Api.Profile"
+    describe "Conduit.Api.Profile"
         [ test "decodes example from spec" <|
             \_ ->
                 """
@@ -19,6 +19,6 @@ suite =
                     "following": false
                 }
                 """
-                    |> Json.decodeString Api.Profile.decoder
+                    |> Json.decodeString Conduit.Api.Profile.decoder
                     |> Expect.ok
         ]

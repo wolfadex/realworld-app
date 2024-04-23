@@ -1,8 +1,9 @@
 module Pages.Register exposing (Model, Msg, page)
 
-import Api
 import Api.Data exposing (Data)
+import Conduit.OpenApi
 import Components.UserForm
+import Conduit.Api
 import Dict
 import Effect exposing (Effect)
 import Http
@@ -30,7 +31,7 @@ page shared req =
 
 
 type alias Model =
-    { user : Data Api.User
+    { user : Data Conduit.Api.User
     , username : String
     , email : String
     , password : String
@@ -61,7 +62,7 @@ init shared _ =
 type Msg
     = Updated Field String
     | AttemptedSignUp
-    | GotUser (Result (List String) Api.UserResponse)
+    | GotUser (Result (List String) Conduit.Api.UserResponse)
 
 
 type Field
@@ -90,7 +91,7 @@ update _ msg model =
 
         AttemptedSignUp ->
             ( model
-            , Api.createUser
+            , Conduit.Api.createUser
                 { body =
                     { user =
                         { username = model.username
@@ -102,7 +103,7 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.CreateUser_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateUser_422 { errors }) ->
                                     errors.body
 
                                 _ ->

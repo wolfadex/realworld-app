@@ -1,6 +1,6 @@
 module Components.Navbar exposing (view)
 
-import Api
+import Conduit.Api
 import Html exposing (..)
 import Html.Attributes exposing (class, classList)
 import Html.Events as Events
@@ -8,7 +8,7 @@ import Route.Path exposing (Path)
 
 
 view :
-    { user : Maybe Api.User
+    { user : Maybe Conduit.Api.User
     , currentRoutePath : Path
     , onSignOut : msg
     }

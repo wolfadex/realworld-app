@@ -25,8 +25,8 @@ port module Effect exposing
 
 -}
 
-import Api
 import Browser.Navigation
+import Conduit.Api
 import Dict exposing (Dict)
 import Json.Decode as Json
 import Json.Encode as Encode
@@ -56,7 +56,7 @@ type Effect msg
       -- SHARED
     | SendSharedMsg Shared.Msg.Msg
       -- USERS
-    | SaveUser Api.User
+    | SaveUser Conduit.Api.User
     | ClearUser
 
 
@@ -118,7 +118,7 @@ replaceRoute route =
 -- USERS
 
 
-signIn : Api.User -> Effect msg
+signIn : Conduit.Api.User -> Effect msg
 signIn user =
     SendSharedMsg (Shared.Msg.SignedInUser user)
 
@@ -128,7 +128,7 @@ signOut =
     SendSharedMsg Shared.Msg.ClickedSignOut
 
 
-saveUser : Api.User -> Effect msg
+saveUser : Conduit.Api.User -> Effect msg
 saveUser user =
     SaveUser user
 
@@ -209,7 +209,7 @@ toCmd options effect =
         SaveUser user ->
             outgoing
                 { tag = "saveUser"
-                , data = Api.encodeUser user
+                , data = Conduit.Api.encodeUser user
                 }
 
         ClearUser ->

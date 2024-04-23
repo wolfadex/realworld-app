@@ -1,9 +1,10 @@
 module Pages.Settings exposing (Model, Msg, page)
 
-import Api
 import Api.Data
 import Auth
 import Components.ErrorList
+import Conduit.Api
+import Conduit.OpenApi
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, placeholder, type_, value)
@@ -75,8 +76,8 @@ init shared _ =
 
 type Msg
     = Updated Field String
-    | SubmittedForm Api.User
-    | GotUser (Result (List String) Api.UserResponse)
+    | SubmittedForm Conduit.Api.User
+    | GotUser (Result (List String) Conduit.Api.UserResponse)
 
 
 type Field
@@ -108,7 +109,7 @@ update msg model =
         SubmittedForm user ->
             ( { model | message = Nothing, errors = [] }
             , Effect.sendCmd <|
-                Api.updateCurrentUser
+                Conduit.Api.updateCurrentUser
                     { authorization = { token = user.token }
                     , body =
                         { user =
@@ -123,10 +124,10 @@ update msg model =
                         Result.mapError
                             (\err ->
                                 case err of
-                                    Api.KnownBadStatus _ (Api.UpdateCurrentUser_401 _) ->
+                                    Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateCurrentUser_401 _) ->
                                         [ "Please log in" ]
 
-                                    Api.KnownBadStatus _ (Api.UpdateCurrentUser_422 { errors }) ->
+                                    Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateCurrentUser_422 { errors }) ->
                                         errors.body
 
                                     _ ->
@@ -170,7 +171,7 @@ subscriptions _ =
 -- VIEW
 
 
-view : Api.User -> Model -> View Msg
+view : Conduit.Api.User -> Model -> View Msg
 view user model =
     { title = "Settings"
     , body =

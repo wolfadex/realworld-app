@@ -1,8 +1,8 @@
 module Components.UserForm exposing (Field, view)
 
-import Api
 import Api.Data exposing (Data)
 import Components.ErrorList
+import Conduit.Api
 import Html exposing (..)
 import Html.Attributes exposing (class, placeholder, type_, value)
 import Html.Events as Events
@@ -18,7 +18,7 @@ type alias Field msg =
 
 
 view :
-    { user : Data Api.User
+    { user : Data Conduit.Api.User
     , label : String
     , onFormSubmit : msg
     , alternateLink : { label : String, route : Path }

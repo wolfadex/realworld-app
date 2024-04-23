@@ -1,9 +1,10 @@
 module Pages.Home_ exposing (Model, Msg, Tab, page)
 
-import Api
 import Api.Data exposing (Data)
 import Article
 import Components.ArticleList
+import Conduit.Api
+import Conduit.OpenApi
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList)
@@ -41,7 +42,7 @@ type alias Model =
 
 
 type Tab
-    = FeedFor Api.User
+    = FeedFor Conduit.Api.User
     | Global
     | TagFilter String
 
@@ -66,12 +67,12 @@ init shared _ =
     ( model
     , Effect.batch
         [ fetchArticlesForTab model
-        , Api.getTags
+        , Conduit.Api.getTags
             { toMsg =
                 Result.mapError
                     (\err ->
                         case err of
-                            Api.KnownBadStatus _ (Api.GetTags_422 { errors }) ->
+                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetTags_422 { errors }) ->
                                 errors.body
 
                             _ ->
@@ -93,7 +94,7 @@ fetchArticlesForTab :
 fetchArticlesForTab model =
     case model.activeTab of
         Global ->
-            Api.getArticles
+            Conduit.Api.getArticles
                 { params =
                     { tag = Nothing
                     , author = Nothing
@@ -105,10 +106,10 @@ fetchArticlesForTab model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -119,7 +120,7 @@ fetchArticlesForTab model =
                 |> Effect.sendCmd
 
         FeedFor user ->
-            Api.getArticlesFeed
+            Conduit.Api.getArticlesFeed
                 { authorization = { token = user.token }
                 , params =
                     { offset = Just ((model.page - 1) * pageLimit)
@@ -129,10 +130,10 @@ fetchArticlesForTab model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.GetArticlesFeed_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticlesFeed_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.GetArticlesFeed_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticlesFeed_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -143,7 +144,7 @@ fetchArticlesForTab model =
                 |> Effect.sendCmd
 
         TagFilter tag ->
-            Api.getArticles
+            Conduit.Api.getArticles
                 { params =
                     { tag = Just tag
                     , author = Nothing
@@ -155,10 +156,10 @@ fetchArticlesForTab model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.GetArticles_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.GetArticles_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -179,13 +180,13 @@ pageLimit =
 
 
 type Msg
-    = GotArticles Int (Result (List String) Api.MultipleArticlesResponse)
-    | GotTags (Result (List String) Api.TagsResponse)
+    = GotArticles Int (Result (List String) Conduit.Api.MultipleArticlesResponse)
+    | GotTags (Result (List String) Conduit.Api.TagsResponse)
     | SelectedTab Tab
-    | ClickedFavorite Api.User Api.Article
-    | ClickedUnfavorite Api.User Api.Article
+    | ClickedFavorite Conduit.Api.User Conduit.Api.Article
+    | ClickedUnfavorite Conduit.Api.User Conduit.Api.Article
     | ClickedPage Int
-    | UpdatedArticle (Result (List String) Api.SingleArticleResponse)
+    | UpdatedArticle (Result (List String) Conduit.Api.SingleArticleResponse)
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -233,17 +234,17 @@ update _ msg model =
 
         ClickedFavorite user article ->
             ( model
-            , Api.createArticleFavorite
+            , Conduit.Api.createArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.CreateArticleFavorite_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -256,17 +257,17 @@ update _ msg model =
 
         ClickedUnfavorite user article ->
             ( model
-            , Api.deleteArticleFavorite
+            , Conduit.Api.deleteArticleFavorite
                 { authorization = { token = user.token }
                 , params = { slug = article.slug }
                 , toMsg =
                     Result.mapError
                         (\err ->
                             case err of
-                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_401 _) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Api.KnownBadStatus _ (Api.DeleteArticleFavorite_422 { errors }) ->
+                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->

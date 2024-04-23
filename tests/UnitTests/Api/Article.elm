@@ -1,6 +1,6 @@
 module UnitTests.Api.Article exposing (suite)
 
-import Api.Article
+import Conduit.Api.Article
 import Expect
 import Json.Decode as Json
 import Test exposing (..)
@@ -8,7 +8,7 @@ import Test exposing (..)
 
 suite : Test
 suite =
-    describe "Api.Article"
+    describe "Conduit.Api.Article"
         [ test "decodes example from spec" <|
             \_ ->
                 """
@@ -30,7 +30,7 @@ suite =
                     }
                 }
                 """
-                    |> Json.decodeString Api.Article.decoder
+                    |> Json.decodeString Conduit.Api.Article.decoder
                     |> Expect.ok
         , test "works with multiple articles example from spec" <|
             \_ ->
@@ -76,6 +76,6 @@ suite =
                 }
                 """
                     |> Json.decodeString
-                        (Json.field "articles" (Json.list Api.Article.decoder))
+                        (Json.field "articles" (Json.list Conduit.Api.Article.decoder))
                     |> Expect.ok
         ]
