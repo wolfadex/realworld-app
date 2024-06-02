@@ -5,8 +5,11 @@
     "review": "elm-review --watch --fix"
   },
   "devDependencies": {
-    "elm-land": "^0.20.0",
-    "elm-open-api": "^0.4.0",
+    "elm-land": "^0.20.1",
+    "elm-open-api": "^0.5.0",
     "elm-review": "^2.11.1"
+  },
+  "volta": {
+    "node": "20.12.2"
   }
 }

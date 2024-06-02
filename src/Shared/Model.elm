@@ -1,8 +1,8 @@
 module Shared.Model exposing (Model)
 
-import Conduit.Api
+import Conduit.Types
 
 
 type alias Model =
-    { user : Maybe Conduit.Api.User
+    { user : Maybe Conduit.Types.User
     }

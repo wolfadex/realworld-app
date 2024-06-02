@@ -1,8 +1,8 @@
 module Shared.Msg exposing (Msg(..))
 
-import Conduit.Api
+import Conduit.Types
 
 
 type Msg
     = ClickedSignOut
-    | SignedInUser Conduit.Api.User
+    | SignedInUser Conduit.Types.User

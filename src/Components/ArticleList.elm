@@ -3,7 +3,7 @@ module Components.ArticleList exposing (view)
 import Api.Data exposing (Data)
 import Article
 import Components.IconButton as IconButton
-import Conduit.Api
+import Conduit.Types
 import Html exposing (..)
 import Html.Attributes exposing (alt, class, classList, href, src)
 import Html.Events as Events
@@ -13,10 +13,10 @@ import Utils.Time
 
 
 view :
-    { user : Maybe Conduit.Api.User
+    { user : Maybe Conduit.Types.User
     , articleListing : Data Article.Listing
-    , onFavorite : Conduit.Api.User -> Conduit.Api.Article -> msg
-    , onUnfavorite : Conduit.Api.User -> Conduit.Api.Article -> msg
+    , onFavorite : Conduit.Types.User -> Conduit.Types.Article -> msg
+    , onUnfavorite : Conduit.Types.User -> Conduit.Types.Article -> msg
     , onPageClick : Int -> msg
     }
     -> List (Html msg)
@@ -54,11 +54,11 @@ view options =
 
 viewArticlePreview :
     { options
-        | user : Maybe Conduit.Api.User
-        , onFavorite : Conduit.Api.User -> Conduit.Api.Article -> msg
-        , onUnfavorite : Conduit.Api.User -> Conduit.Api.Article -> msg
+        | user : Maybe Conduit.Types.User
+        , onFavorite : Conduit.Types.User -> Conduit.Types.Article -> msg
+        , onUnfavorite : Conduit.Types.User -> Conduit.Types.Article -> msg
     }
-    -> Conduit.Api.Article
+    -> Conduit.Types.Article
     -> Html msg
 viewArticlePreview options article =
     div [ class "article-preview" ]

@@ -4,13 +4,13 @@ import Api.Data
 import Auth
 import Components.ErrorList
 import Conduit.Api
-import Conduit.OpenApi
+import Conduit.Types
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, placeholder, type_, value)
 import Html.Events as Events
-import Http
 import Layouts
+import OpenApi.Common
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -76,8 +76,8 @@ init shared _ =
 
 type Msg
     = Updated Field String
-    | SubmittedForm Conduit.Api.User
-    | GotUser (Result (List String) Conduit.Api.UserResponse)
+    | SubmittedForm Conduit.Types.User
+    | GotUser (Result (List String) Conduit.Types.UserResponse)
 
 
 type Field
@@ -124,10 +124,10 @@ update msg model =
                         Result.mapError
                             (\err ->
                                 case err of
-                                    Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateCurrentUser_401 _) ->
+                                    OpenApi.Common.KnownBadStatus _ (Conduit.Types.UpdateCurrentUser_401 _) ->
                                         [ "Please log in" ]
 
-                                    Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateCurrentUser_422 { errors }) ->
+                                    OpenApi.Common.KnownBadStatus _ (Conduit.Types.UpdateCurrentUser_422 { errors }) ->
                                         errors.body
 
                                     _ ->
@@ -171,7 +171,7 @@ subscriptions _ =
 -- VIEW
 
 
-view : Conduit.Api.User -> Model -> View Msg
+view : Conduit.Types.User -> Model -> View Msg
 view user model =
     { title = "Settings"
     , body =

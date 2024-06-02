@@ -1,7 +1,7 @@
 module Auth exposing (User, onPageLoad, viewCustomPage, viewLoadingPage)
 
 import Auth.Action
-import Conduit.Api
+import Conduit.Types
 import Dict
 import Route exposing (Route)
 import Route.Path
@@ -10,7 +10,7 @@ import View exposing (View)
 
 
 type alias User =
-    Conduit.Api.User
+    Conduit.Types.User
 
 
 onPageLoad : Shared.Model -> Route () -> Auth.Action.Action User

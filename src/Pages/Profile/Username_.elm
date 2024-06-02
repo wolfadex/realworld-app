@@ -6,13 +6,14 @@ import Components.ArticleList
 import Components.IconButton as IconButton
 import Components.NotFound
 import Conduit.Api
-import Conduit.OpenApi
+import Conduit.Types
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList, src)
 import Html.Events as Events
 import Http
 import Layouts
+import OpenApi.Common
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -37,7 +38,7 @@ page shared req =
 
 type alias Model =
     { username : String
-    , profile : Data Conduit.Api.Profile
+    , profile : Data Conduit.Types.Profile
     , listing : Data Article.Listing
     , selectedTab : Tab
     , page : Int
@@ -64,10 +65,10 @@ init _ { params } _ =
                 Result.mapError
                     (\err ->
                         case err of
-                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetProfileByUsername_401 _) ->
+                            OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetProfileByUsername_401 _) ->
                                 [ "Please log in" ]
 
-                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetProfileByUsername_422 { errors }) ->
+                            OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetProfileByUsername_422 { errors }) ->
                                 errors.body
 
                             _ ->
@@ -100,10 +101,10 @@ fetchArticlesBy username page_ =
             Result.mapError
                 (\err ->
                     case err of
-                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
+                        OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_401 _) ->
                             [ "Please log in" ]
 
-                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
+                        OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_422 { errors }) ->
                             errors.body
 
                         _ ->
@@ -128,10 +129,10 @@ fetchArticlesFavoritedBy username page_ =
             Result.mapError
                 (\err ->
                     case err of
-                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
+                        OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_401 _) ->
                             [ "Please log in" ]
 
-                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
+                        OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_422 { errors }) ->
                             errors.body
 
                         _ ->
@@ -147,14 +148,14 @@ fetchArticlesFavoritedBy username page_ =
 
 
 type Msg
-    = GotProfile (Result (List String) Conduit.Api.ProfileResponse)
-    | GotArticles Int (Result (List String) Conduit.Api.MultipleArticlesResponse)
+    = GotProfile (Result (List String) Conduit.Types.ProfileResponse)
+    | GotArticles Int (Result (List String) Conduit.Types.MultipleArticlesResponse)
     | Clicked Tab
-    | ClickedFavorite Conduit.Api.User Conduit.Api.Article
-    | ClickedUnfavorite Conduit.Api.User Conduit.Api.Article
-    | UpdatedArticle (Result (List String) Conduit.Api.SingleArticleResponse)
-    | ClickedFollow Conduit.Api.User Conduit.Api.Profile
-    | ClickedUnfollow Conduit.Api.User Conduit.Api.Profile
+    | ClickedFavorite Conduit.Types.User Conduit.Types.Article
+    | ClickedUnfavorite Conduit.Types.User Conduit.Types.Article
+    | UpdatedArticle (Result (List String) Conduit.Types.SingleArticleResponse)
+    | ClickedFollow Conduit.Types.User Conduit.Types.Profile
+    | ClickedUnfollow Conduit.Types.User Conduit.Types.Profile
     | ClickedPage Int
 
 
@@ -180,10 +181,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.FollowUserByUsername_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.FollowUserByUsername_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.FollowUserByUsername_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.FollowUserByUsername_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -203,10 +204,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UnfollowUserByUsername_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.UnfollowUserByUsername_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UnfollowUserByUsername_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.UnfollowUserByUsername_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -260,10 +261,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.CreateArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.CreateArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -283,10 +284,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.DeleteArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.DeleteArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -355,7 +356,7 @@ view shared model =
     }
 
 
-viewProfile : Shared.Model -> Conduit.Api.Profile -> Model -> Html Msg
+viewProfile : Shared.Model -> Conduit.Types.Profile -> Model -> Html Msg
 viewProfile shared profile model =
     let
         isViewingOwnProfile : Bool

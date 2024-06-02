@@ -4,12 +4,12 @@ import Api.Data exposing (Data)
 import Auth
 import Components.Editor exposing (Field, Form)
 import Conduit.Api
-import Conduit.OpenApi
+import Conduit.Types
 import Dict
 import Effect exposing (Effect)
 import Html exposing (..)
-import Http
 import Layouts
+import OpenApi.Common
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -35,7 +35,7 @@ page user shared route =
 type alias Model =
     { slug : String
     , form : Maybe Form
-    , article : Data Conduit.Api.Article
+    , article : Data Conduit.Types.Article
     }
 
 
@@ -51,7 +51,7 @@ init _ { params } _ =
             Result.mapError
                 (\err ->
                     case err of
-                        Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticle_422 { errors }) ->
+                        OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticle_422 { errors }) ->
                             errors.body
 
                         _ ->
@@ -68,10 +68,10 @@ init _ { params } _ =
 
 
 type Msg
-    = SubmittedForm Conduit.Api.User Form
+    = SubmittedForm Conduit.Types.User Form
     | Updated Field String
-    | UpdatedArticle (Result (List String) Conduit.Api.SingleArticleResponse)
-    | LoadedInitialArticle (Result (List String) Conduit.Api.SingleArticleResponse)
+    | UpdatedArticle (Result (List String) Conduit.Types.SingleArticleResponse)
+    | LoadedInitialArticle (Result (List String) Conduit.Types.SingleArticleResponse)
 
 
 update : Route { articleSlug : String } -> Msg -> Model -> ( Model, Effect Msg )
@@ -121,10 +121,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateArticle_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.UpdateArticle_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.UpdateArticle_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.UpdateArticle_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -164,7 +164,7 @@ subscriptions _ =
 -- VIEW
 
 
-view : Conduit.Api.User -> Model -> View Msg
+view : Conduit.Types.User -> Model -> View Msg
 view user model =
     { title = "Editing Article"
     , body =

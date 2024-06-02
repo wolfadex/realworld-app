@@ -1,14 +1,14 @@
 module UnitTests.Api.User exposing (suite)
 
-import Conduit.Api.User
 import Expect
 import Json.Decode as Json
+import OpenApi.Common
 import Test exposing (..)
 
 
 suite : Test
 suite =
-    describe "Conduit.Api.User"
+    describe "OpenApi.Common"
         [ test "decodes example from spec" <|
             \_ ->
                 """
@@ -20,6 +20,6 @@ suite =
                     "image": null
                 }
                 """
-                    |> Json.decodeString Conduit.Api.User.decoder
+                    |> Json.decodeString OpenApi.Common.decoder
                     |> Expect.ok
         ]

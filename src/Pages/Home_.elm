@@ -4,13 +4,13 @@ import Api.Data exposing (Data)
 import Article
 import Components.ArticleList
 import Conduit.Api
-import Conduit.OpenApi
+import Conduit.Types
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList)
 import Html.Events as Events
-import Http
 import Layouts
+import OpenApi.Common
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
@@ -42,7 +42,7 @@ type alias Model =
 
 
 type Tab
-    = FeedFor Conduit.Api.User
+    = FeedFor Conduit.Types.User
     | Global
     | TagFilter String
 
@@ -72,7 +72,7 @@ init shared _ =
                 Result.mapError
                     (\err ->
                         case err of
-                            Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetTags_422 { errors }) ->
+                            OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetTags_422 { errors }) ->
                                 errors.body
 
                             _ ->
@@ -106,10 +106,10 @@ fetchArticlesForTab model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -130,10 +130,10 @@ fetchArticlesForTab model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticlesFeed_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticlesFeed_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticlesFeed_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticlesFeed_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -156,10 +156,10 @@ fetchArticlesForTab model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.GetArticles_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.GetArticles_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -180,13 +180,13 @@ pageLimit =
 
 
 type Msg
-    = GotArticles Int (Result (List String) Conduit.Api.MultipleArticlesResponse)
-    | GotTags (Result (List String) Conduit.Api.TagsResponse)
+    = GotArticles Int (Result (List String) Conduit.Types.MultipleArticlesResponse)
+    | GotTags (Result (List String) Conduit.Types.TagsResponse)
     | SelectedTab Tab
-    | ClickedFavorite Conduit.Api.User Conduit.Api.Article
-    | ClickedUnfavorite Conduit.Api.User Conduit.Api.Article
+    | ClickedFavorite Conduit.Types.User Conduit.Types.Article
+    | ClickedUnfavorite Conduit.Types.User Conduit.Types.Article
     | ClickedPage Int
-    | UpdatedArticle (Result (List String) Conduit.Api.SingleArticleResponse)
+    | UpdatedArticle (Result (List String) Conduit.Types.SingleArticleResponse)
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
@@ -241,10 +241,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.CreateArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.CreateArticleFavorite_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.CreateArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->
@@ -264,10 +264,10 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_401 _) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.DeleteArticleFavorite_401 _) ->
                                     [ "Please log in" ]
 
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.DeleteArticleFavorite_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.DeleteArticleFavorite_422 { errors }) ->
                                     errors.body
 
                                 _ ->

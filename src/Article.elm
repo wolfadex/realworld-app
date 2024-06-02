@@ -1,19 +1,19 @@
 module Article exposing (Listing, updateListing)
 
-import Conduit.Api
+import Conduit.Types
 
 
 type alias Listing =
-    { articles : List Conduit.Api.Article
+    { articles : List Conduit.Types.Article
     , page : Int
     , totalPages : Int
     }
 
 
-updateListing : Conduit.Api.Article -> Listing -> Listing
+updateListing : Conduit.Types.Article -> Listing -> Listing
 updateListing article listing =
     let
-        articles : List Conduit.Api.Article
+        articles : List Conduit.Types.Article
         articles =
             List.map
                 (\a ->

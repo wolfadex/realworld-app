@@ -6,7 +6,7 @@ module Components.Editor exposing
     )
 
 import Api.Data exposing (Data)
-import Conduit.Api
+import Conduit.Types
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, placeholder, type_, value)
 import Html.Events as Events
@@ -54,7 +54,7 @@ view :
         }
     , buttonLabel : String
     , onUpdate : Field -> String -> msg
-    , article : Data Conduit.Api.Article
+    , article : Data Conduit.Types.Article
     }
     -> Html msg
 view options =

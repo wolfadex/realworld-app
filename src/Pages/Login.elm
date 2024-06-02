@@ -3,11 +3,12 @@ module Pages.Login exposing (Model, Msg, page)
 import Api.Data exposing (Data)
 import Components.UserForm
 import Conduit.Api
-import Conduit.OpenApi
+import Conduit.Types
 import Dict
 import Effect exposing (Effect)
 import Http
 import Layouts
+import OpenApi.Common
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
@@ -31,7 +32,7 @@ page shared req =
 
 
 type alias Model =
-    { user : Data Conduit.Api.User
+    { user : Data Conduit.Types.User
     , email : String
     , password : String
     }
@@ -60,7 +61,7 @@ init shared _ =
 type Msg
     = Updated Field String
     | AttemptedSignIn
-    | GotUser (Result (List String) Conduit.Api.UserResponse)
+    | GotUser (Result (List String) Conduit.Types.UserResponse)
 
 
 type Field
@@ -94,7 +95,7 @@ update _ msg model =
                     Result.mapError
                         (\err ->
                             case err of
-                                Conduit.OpenApi.KnownBadStatus _ (Conduit.Api.Login_422 { errors }) ->
+                                OpenApi.Common.KnownBadStatus _ (Conduit.Types.Login_422 { errors }) ->
                                     errors.body
 
                                 _ ->

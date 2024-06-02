@@ -8,7 +8,8 @@ module Shared exposing
     , update
     )
 
-import Conduit.Api
+import Conduit.Json
+import Conduit.Types
 import Effect exposing (Effect)
 import Json.Decode
 import Route exposing (Route)
@@ -21,14 +22,14 @@ import Shared.Msg
 
 
 type alias Flags =
-    { user : Maybe Conduit.Api.User
+    { user : Maybe Conduit.Types.User
     }
 
 
 decoder : Json.Decode.Decoder Flags
 decoder =
     Json.Decode.map Flags
-        (Json.Decode.maybe (Json.Decode.field "user" Conduit.Api.decodeUser))
+        (Json.Decode.maybe (Json.Decode.field "user" Conduit.Json.decodeUser))
 
 
 type alias Model =
